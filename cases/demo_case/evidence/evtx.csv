@@ -1,0 +1,5 @@
+event_id,time_utc,channel,user,message
+4624,2026-05-20T14:01:30Z,Security,WIN10\victim,"Successful logon Type 3 from source 203.0.113.50; shared anchor for memory netscan connection"
+4688,2026-05-20T14:01:55Z,Security,WIN10\victim,"powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\victim\Downloads\stage.ps1"
+4688,2026-05-20T14:02:10Z,Security,WIN10\victim,"C:\Users\victim\AppData\Roaming\evil.exe launched by powershell.exe"
+7045,2026-05-20T14:02:33Z,System,WIN10\victim,"Service creation attempt failed for UpdaterSvc"

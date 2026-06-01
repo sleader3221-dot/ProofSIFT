@@ -1,0 +1,4 @@
+path,reason,time_utc
+C:\Users\victim\AppData\Roaming\evil.exe,FILE_CREATE|DATA_EXTEND,2026-05-20T14:02:05Z
+C:\Users\victim\AppData\Roaming\evil.exe,BASIC_INFO_CHANGE,2026-05-20T14:02:25Z
+

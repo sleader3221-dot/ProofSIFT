@@ -1,0 +1,4 @@
+file_name,path,sha256,first_run_utc,publisher
+evil.exe,C:\Users\victim\AppData\Roaming\evil.exe,4f7b4e9e1a2d9f0d934c06b9f39e4c6f1ef88aaad861a4c60b8636b32701f7a7,2026-05-20T14:02:11Z,Unsigned
+powershell.exe,C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe,0d2d8f81a3b5b3e9415b4dd271fbaaa20e8a33b0d1f6a926e9f4419a7d6f3c8a,2026-05-20T14:01:55Z,Microsoft Windows
+

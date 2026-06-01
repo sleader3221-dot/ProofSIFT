@@ -1,0 +1,6 @@
+# ProofSIFT core uses Python standard-library SQLite/JSON/CSV for the demo path.
+# These packages support the SIFT/MCP deployment and native forensic adapters.
+mcp>=1.9.0
+sqlalchemy>=2.0.0
+volatility3>=2.7.0
+

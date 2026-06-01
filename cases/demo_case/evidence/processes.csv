@@ -1,0 +1,6 @@
+pid,ppid,name,image_path,created_utc,source,user
+412,4,svchost.exe,C:\Windows\System32\svchost.exe,2026-05-20T13:58:11Z,pslist,NT AUTHORITY\SYSTEM
+632,412,explorer.exe,C:\Windows\explorer.exe,2026-05-20T14:00:01Z,pslist,WIN10\victim
+1888,632,evil.exe,C:\Users\victim\AppData\Roaming\evil.exe,2026-05-20T14:02:10Z,psscan,WIN10\victim
+2100,632,powershell.exe,C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe,2026-05-20T14:01:55Z,pslist,WIN10\victim
+

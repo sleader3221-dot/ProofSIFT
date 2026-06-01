@@ -1,0 +1,5 @@
+pid,process,local,remote_ip,remote_port,state,first_seen
+412,svchost.exe,10.0.2.15:49701,10.0.2.2,53,ESTABLISHED,2026-05-20T14:01:00Z
+1888,evil.exe,10.0.2.15:49822,203.0.113.50,443,ESTABLISHED,2026-05-20T14:03:30Z
+4444,unknown.exe,10.0.2.15:49999,198.51.100.24,443,CLOSED,2026-05-20T14:05:02Z
+

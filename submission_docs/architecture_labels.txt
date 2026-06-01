@@ -1,0 +1,7 @@
+ProofSIFT architecture.png label key
+
+Left zone: Registered evidence roots, read-only mounts, evidence hashes.
+Middle zone: Custom MCP server with typed SIFT wrappers; no raw shell boundary.
+Right zone: Evidence graph, self-correcting investigator, critic, reports, benchmark.
+Main flow: Evidence -> SafePathPolicy -> typed tools -> SQLite evidence graph -> clock drift / anti-forensics / MITRE sequence -> reports/logs.
+Trust boundary: original evidence is read-only; all writes go to derived outputs/submission_docs.

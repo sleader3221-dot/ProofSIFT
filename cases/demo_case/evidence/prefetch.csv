@@ -1,0 +1,4 @@
+executable,path,run_count,last_run_utc
+POWERSHELL.EXE,C:\Windows\Prefetch\POWERSHELL.EXE-A1B2C3D4.pf,1,2026-05-20T14:01:58Z
+EVIL.EXE,C:\Windows\Prefetch\EVIL.EXE-9A8B7C6D.pf,3,2026-05-20T14:02:13Z
+

@@ -1,0 +1,3 @@
+pid,process,vad_start,vad_end,protection,tag,disasm
+1888,evil.exe,0x000001f4a0000000,0x000001f4a001ffff,PAGE_EXECUTE_READWRITE,VadS,"MZ header and suspicious beacon stub observed"
+

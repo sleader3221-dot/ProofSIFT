@@ -1,0 +1,4 @@
+name,path,registry_key,created_utc,user
+Updater,C:\Users\victim\AppData\Roaming\evil.exe,HKCU\Software\Microsoft\Windows\CurrentVersion\Run,2026-05-20T14:02:30Z,WIN10\victim
+OneDrive,C:\Users\victim\AppData\Local\Microsoft\OneDrive\OneDrive.exe,HKCU\Software\Microsoft\Windows\CurrentVersion\Run,2026-05-19T10:00:00Z,WIN10\victim
+

@@ -1,0 +1,19 @@
+# ProofSIFT agentic IDE guardrails
+
+You are editing a defensive DFIR project for the SANS Find Evil hackathon.
+
+Hard rules:
+- Never modify original evidence files under `cases/**/evidence/`.
+- Never add a raw shell-execution tool for forensic analysis.
+- All forensic access must flow through typed, read-only wrappers.
+- Writes are allowed only under configured output directories or submission docs.
+- A `CONFIRMED` finding requires multi-source artifact evidence.
+- Prefer derived observations and SQLite provenance over unstructured text dumps.
+- If a parser fails or input is malformed, record the anomaly as evidence and degrade gracefully.
+- Preserve `execution_log.jsonl` traceability for every tool and correction event.
+
+Preferred commands:
+- `$env:PYTHONPATH="src"; python -m proofsift run --case cases\demo_case\case.json --max-iterations 3`
+- `$env:PYTHONPATH="src"; python -m proofsift benchmark --case cases\demo_case\case.json --ground-truth cases\demo_case\ground_truth.json --max-iterations 3`
+- `$env:PYTHONPATH="src"; python -m unittest discover -s tests -v`
+

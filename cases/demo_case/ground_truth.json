@@ -1,0 +1,39 @@
+{
+  "case_id": "proofsift-demo-001",
+  "expected_confirmed": [
+    {
+      "contains": "evil.exe communicated with known C2 indicator 203.0.113.50",
+      "why": "Memory network data, process data, prefetch, amcache, MFT, EVTX, USN, and keyword scan all corroborate the executable."
+    },
+    {
+      "contains": "evil.exe established user-level persistence",
+      "why": "Autorun registry artifact points to the same evil.exe path corroborated by execution artifacts."
+    }
+  ],
+  "forbidden_confirmed": [
+    {
+      "contains": "unknown.exe communicated with known C2 indicator 198.51.100.24",
+      "why": "Network-only data is intentionally insufficient for a confirmed claim."
+    },
+    {
+      "contains": "svchost.exe was malicious",
+      "why": "The negative-control system process must not be escalated without corroboration."
+    }
+  ],
+  "expected_anomalies": [
+    {
+      "contains": "mft_creation_postdates_prefetch_execution",
+      "why": "The demo MFT creation time for evil.exe postdates its Prefetch execution evidence."
+    },
+    {
+      "contains": "mft_created_after_modified",
+      "why": "The demo MFT creation time for evil.exe is later than the modification time."
+    }
+  ],
+  "expected_clock_drifts": [
+    {
+      "contains": "203.0.113.50",
+      "why": "The EVTX 4624 anchor is two minutes behind the netscan connection for the same source IP."
+    }
+  ]
+}

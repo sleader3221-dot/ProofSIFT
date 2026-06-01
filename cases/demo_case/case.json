@@ -1,0 +1,13 @@
+{
+  "case_id": "proofsift-demo-001",
+  "name": "ProofSIFT Demo - Self-Correcting Windows Triage",
+  "evidence_dir": "evidence",
+  "output_dir": "outputs",
+  "max_iterations": 3,
+  "indicators": {
+    "c2_ips": ["203.0.113.50", "198.51.100.24"],
+    "benign_processes": ["svchost.exe", "lsass.exe"],
+    "yara_keywords": ["evil beacon", "credential harvest", "c2 channel"]
+  }
+}
+
