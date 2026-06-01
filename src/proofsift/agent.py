@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path, PureWindowsPath
-from typing import Any
+from typing import Any, Callable
 
 from .anti_forensics import AntiForensicsDetector
 from .audit import AuditLogger
@@ -18,7 +19,7 @@ from .tools import ToolRunner, estimate_tokens
 class SelfCorrectingInvestigator:
     """Deterministic autonomous DFIR loop with explicit verification gates."""
 
-    def __init__(self, config: CaseConfig):
+    def __init__(self, config: CaseConfig, terminal: Callable[..., Any] | None = None):
         self.config = config
         self.evidence_dir = Path(config.evidence_dir).resolve()
         self.output_dir = Path(config.output_dir).resolve()
@@ -31,21 +32,43 @@ class SelfCorrectingInvestigator:
         self.clock_drift = ClockDriftNormalizer(self.graph, self.audit)
         self.anti_forensics = AntiForensicsDetector(self.graph, self.audit)
         self.mitre_sequence = MitreSequenceValidator(self.graph, self.audit)
+        self.t = terminal
+        self._start_time = 0.0
 
     def run(self) -> dict[str, Any]:
+        self._start_time = time.perf_counter()
         self.audit.event("agent", "run.start", {"case_id": self.config.case_id, "max_iterations": self.config.max_iterations})
+        if self.t:
+            self.t.separator(f"PROOFSIFT AUTONOMOUS DFIR ENGINE - Case: {self.config.case_id}")
+            self.t.ingestion(self.config.case_id)
         self.tools.hash_all_evidence()
         self.tools.spoliation_probe()
+        if self.t:
+            self.t.ok("Forensic integrity hashes verified - spoliation probe passed (evidence writes blocked)")
         self.tools.memory_pslist()
         self.tools.memory_psscan()
         self.tools.memory_netscan()
         self.tools.memory_malfind()
+        if self.t:
+            self.t.ok("Memory and network artifacts ingested: pslist, psscan, netscan, malfind")
 
+        if self.t:
+            self.t.iteration_header(1, self.config.max_iterations, "Memory & Network Triage")
+            self.t.investigate()
         self.audit.event("agent", "iteration.start", {"iteration": 1, "phase": "memory and network triage"})
         self._network_hypotheses(iteration=1)
+        if self.t:
+            self.t.ok("Network triage complete - C2 hypotheses generated from indicator matches")
         sequence_recommendations = self._validate_mitre_sequence(iteration=1)
         needs_disk = self._verify_claims(iteration=1)
         needs_disk = needs_disk or bool(sequence_recommendations)
+        if self.t and sequence_recommendations:
+            for rec in sequence_recommendations:
+                self.t.critic_alert(
+                    rec.target_claim_id,
+                    "MitreSequenceValidator flagged a structural gap!",
+                    f"Missing: {' or '.join(rec.required_tactics)} artifacts.",
+                )
         self.audit.event(
             "agent",
             "iteration.end",
@@ -57,35 +80,54 @@ class SelfCorrectingInvestigator:
         )
 
         if self.config.max_iterations >= 2 and needs_disk:
+            if self.t:
+                self.t.iteration_header(2, self.config.max_iterations, "Disk Corroboration & Persistence Analysis")
             self.audit.event("agent", "iteration.start", {"iteration": 2, "phase": "disk corroboration and persistence"})
             self.tools.disk_prefetch()
+            if self.t:
+                self.t.tool_run("disk_prefetch", "Prefetch execution artifacts parsed")
             self.tools.disk_amcache()
+            if self.t:
+                self.t.tool_run("disk_amcache", "Amcache program inventory parsed")
             self.tools.disk_shimcache()
             self.tools.registry_autoruns()
+            if self.t:
+                self.t.tool_run("registry_autoruns", "Autorun persistence points enumerated")
             self.tools.timeline_mft()
             self.tools.timeline_usn()
             self.tools.windows_evtx()
             self.tools.windows_process_creation()
             self.tools.powershell_logs()
             self.tools.yara_keyword_scan()
+            if self.t:
+                self.t.tool_run("yara_keyword_scan", "IOC keyword matching complete")
             self._normalize_clock_drift(iteration=2)
             self._correlate_disk_memory(iteration=2)
             anomalies = self.anti_forensics.detect()
+            if self.t and anomalies:
+                for a in anomalies:
+                    self.t.critic_review(a.anomaly_type, a.confidence_multiplier)
             self._apply_anti_forensics_adjustments(anomalies, iteration=2)
             self._verify_claims(iteration=2)
             self._validate_mitre_sequence(iteration=2)
             self.audit.event("agent", "iteration.end", {"iteration": 2})
 
         if self.config.max_iterations >= 3:
+            if self.t:
+                self.t.iteration_header(3, self.config.max_iterations, "Negative Controls & Narrative Hardening")
             self.audit.event("agent", "iteration.start", {"iteration": 3, "phase": "negative controls and narrative hardening"})
             self._negative_controls(iteration=3)
+            if self.t:
+                self.t.ok("Negative controls verified - benign processes retained as context, not escalated")
             self._verify_claims(iteration=3)
             self.audit.event("agent", "iteration.end", {"iteration": 3})
 
         reports = write_reports(self.config, self.graph, self.output_dir)
+        elapsed = time.perf_counter() - self._start_time
         result = {
             "case_id": self.config.case_id,
             "output_dir": str(self.output_dir),
+            "runtime": round(elapsed, 4),
             "reports": reports,
             "claims": [dict(row) for row in self.graph.claims()],
             "corrections": [dict(row) for row in self.graph.corrections()],
@@ -94,6 +136,9 @@ class SelfCorrectingInvestigator:
             "sequence_recommendations": [dict(row) for row in self.graph.sequence_recommendations()],
         }
         self.audit.event("agent", "run.end", {"case_id": self.config.case_id, "claim_count": len(result["claims"]), "report_md": reports["markdown"]})
+        if self.t:
+            self.t.separator("INVESTIGATION COMPLETE")
+            self.t.ok(f"Completed in {elapsed:.2f}s - {len(result['claims'])} claims, {len(result['corrections'])} corrections, {len(result['reports'])} reports generated")
         self.graph.close()
         return result
 
@@ -125,6 +170,8 @@ class SelfCorrectingInvestigator:
                 {"source": drift.source, "normalized": True, "delta_seconds": drift.delta_seconds},
                 "clock drift normalization applied to cross-source observations",
             )
+            if self.t:
+                self.t.drift_detected(drift.source, drift.reference_source, drift.delta_seconds)
 
     def _validate_mitre_sequence(self, iteration: int):
         recommendations = self.mitre_sequence.validate()
@@ -220,6 +267,7 @@ class SelfCorrectingInvestigator:
                 yara,
             )
             if len({match["kind"] for match in matches}) >= 3:
+                old_status = claim_row["status"]
                 claim = Claim(
                     claim_id=claim_row["claim_id"],
                     statement=claim_row["statement"],
@@ -234,6 +282,8 @@ class SelfCorrectingInvestigator:
                 self.graph.upsert_claim(claim)
                 self.graph.add_correction(iteration, claim.claim_id, before, _claim_dict(claim), "upgraded after disk and event-log corroboration")
                 self.audit.event("agent", "claim.corrected", {"iteration": iteration, "claim_id": claim.claim_id, "reason": "upgraded after corroboration"})
+                if self.t:
+                    self.t.claim_escalation(claim.claim_id, old_status, "CONFIRMED", "CRITICAL")
 
             autorun_matches = [artifact for artifact in autoruns if target_name.lower() in json.dumps(artifact["fields"]).lower()]
             if autorun_matches:
@@ -295,6 +345,8 @@ class SelfCorrectingInvestigator:
                 self.graph.upsert_claim(claim)
                 self.graph.add_correction(iteration, claim.claim_id, before, _claim_dict(claim), "downgraded unsupported confirmed claim")
                 self.audit.event("agent", "claim.corrected", {"iteration": iteration, "claim_id": claim.claim_id, "reason": "downgraded unsupported confirmed claim"})
+                if self.t:
+                    self.t.claim_downgrade(claim.claim_id, "downgraded from CONFIRMED - fewer than 2 independent artifact kinds")
             if "known C2 indicator" in row["statement"] and row["status"] != ClaimStatus.CONFIRMED.value:
                 if not {"prefetch", "amcache", "mft"}.intersection(kinds):
                     needs_disk = True
@@ -306,6 +358,8 @@ class SelfCorrectingInvestigator:
                         self.graph.upsert_claim(claim)
                         self.graph.add_correction(iteration, claim.claim_id, before, _claim_dict(claim), "downgraded pending disk corroboration")
                         self.audit.event("agent", "claim.corrected", {"iteration": iteration, "claim_id": claim.claim_id, "reason": "pending disk corroboration"})
+                        if self.t:
+                            self.t.claim_downgrade(claim.claim_id, "downgraded to INFERRED - disk execution evidence missing, pending corroboration")
         return needs_disk
 
     def _negative_controls(self, iteration: int) -> None:

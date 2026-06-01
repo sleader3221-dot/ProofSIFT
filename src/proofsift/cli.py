@@ -9,6 +9,7 @@ from .benchmark import run_benchmark
 from .graph import EvidenceGraph
 from .mcp_server import serve_stdio
 from .tools import ToolRunner
+from . import terminal as t
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -41,7 +42,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "run":
         config = load_case_config(args.case, output_override=args.output, max_iterations=args.max_iterations)
-        result = SelfCorrectingInvestigator(config).run()
+        result = SelfCorrectingInvestigator(config, terminal=t).run()
         print(json.dumps({"output_dir": result["output_dir"], "claim_count": len(result["claims"]), "correction_count": len(result["corrections"]), "reports": result["reports"]}, indent=2))
         return 0
     if args.command == "benchmark":
