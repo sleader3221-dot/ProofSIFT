@@ -101,6 +101,11 @@ def validate_submission(root: Path) -> dict[str, object]:
         "Submission accuracy report": root / "submission_docs" / "accuracy_report.md",
         "Submission final report": root / "submission_docs" / "report_3.md",
         "Submission execution log": root / "submission_docs" / "execution_log.jsonl",
+        "Frontend package": root / "package.json",
+        "Frontend entry HTML": root / "index.html",
+        "Frontend component": root / "src" / "frontend" / "ProofSIFTArchitectureFlow.jsx",
+        "Vercel config": root / "vercel.json",
+        "Vercel docs": root / "docs" / "vercel_deployment.md",
     }
     missing = [label for label, path in required.items() if not path.exists()]
     return {"passed": not missing, "missing": missing, "checked_root": str(root)}

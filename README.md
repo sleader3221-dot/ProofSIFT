@@ -150,6 +150,25 @@ chmod +x setup_sift.sh
 
 Automates: system dependencies, Python venv, package install, submission validation.
 
+## Architecture Visualizer
+
+The repo includes a Vite + React Flow architecture visualizer for judges and security reviewers:
+
+```bash
+npm install
+npm run dev
+npm run build
+```
+
+Vercel settings:
+
+- Framework Preset: `Vite`
+- Root Directory: `.`
+- Build Command: `npm run build`
+- Output Directory: `dist`
+
+See [docs/vercel_deployment.md](docs/vercel_deployment.md).
+
 ## Trace a Claim
 
 ```bash
