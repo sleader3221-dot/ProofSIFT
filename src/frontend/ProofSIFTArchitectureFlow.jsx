@@ -1,7 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { memo, useCallback, useMemo, useState } from 'react';
 import {
   Background,
+  BaseEdge,
   Controls,
+  EdgeLabelRenderer,
   Handle,
   MarkerType,
   MiniMap,
@@ -9,19 +11,28 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  getSmoothStepPath,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import {
+  Activity,
   Bot,
   BrainCircuit,
   Braces,
+  Clock,
   Database,
+  FileCheck2,
   FileJson,
+  FileSearch,
+  GitBranch,
   HardDrive,
   LockKeyhole,
   MemoryStick,
+  Network,
   Radar,
   Route,
+  ScrollText,
   ShieldAlert,
   ShieldCheck,
   Terminal,
@@ -34,132 +45,119 @@ const palette = {
   teal: '#2dd4bf',
   indigo: '#818cf8',
   violet: '#a78bfa',
-  zinc950: '#09090b',
+  green: '#22c55e',
   slate950: '#020617',
   slate900: '#0f172a',
   slate800: '#1e293b',
+  slate500: '#64748b',
   slate300: '#cbd5e1',
 };
 
-const nodeShell = {
-  width: '100%',
-  height: '100%',
-  borderRadius: 8,
-  position: 'relative',
-  overflow: 'hidden',
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-between',
+const toneMap = {
+  blue: palette.blue,
+  amber: palette.amber,
+  red: palette.red,
+  teal: palette.teal,
+  indigo: palette.indigo,
+  violet: palette.violet,
+  green: palette.green,
+  slate: palette.slate500,
 };
 
-function ArchitectureNode({ data, selected }) {
+const nodeDefaults = {
+  minWidth: 250,
+  minHeight: 142,
+};
+
+const chipSets = {
+  capabilityMatrix: [
+    'pslist',
+    'psscan',
+    'netscan',
+    'malfind',
+    'Prefetch',
+    'Amcache',
+    'Shimcache',
+    'MFT',
+    'USN',
+    'EVTX',
+    '4688',
+    'PowerShell',
+    'YARA',
+    'SHA-256',
+    'SafePathPolicy',
+    'Clock drift',
+    'Timestomp',
+    'MITRE chain',
+    'Confidence scoring',
+    'Benchmark',
+    'Spoliation tests',
+    'JSONL traces',
+    'SQLite graph',
+    'Report links',
+  ],
+};
+
+function nodeHandleStyle(accent) {
+  return {
+    width: 10,
+    height: 10,
+    background: accent,
+    borderColor: palette.slate950,
+    boxShadow: `0 0 12px ${accent}99`,
+  };
+}
+
+const ArchitectureNode = memo(function ArchitectureNode({ data, selected }) {
   const Icon = data.icon ?? Braces;
   const accent = data.accent ?? palette.blue;
 
   return (
     <div
+      className={`proof-node ${selected ? 'proof-node--selected' : ''}`}
       style={{
-        ...nodeShell,
-        minWidth: data.minWidth ?? 210,
-        minHeight: data.minHeight ?? 92,
-        padding: 16,
-        border: `1px solid ${selected ? '#f8fafc' : accent}`,
-        background:
+        '--node-accent': accent,
+        '--node-background':
           data.background ??
-          'linear-gradient(180deg, rgba(15,23,42,0.96), rgba(9,9,11,0.98))',
-        boxShadow: selected
-          ? `0 0 0 1px #f8fafc, 0 0 36px ${accent}66`
-          : `0 0 24px ${accent}22`,
+          'linear-gradient(180deg, rgba(15,23,42,0.98), rgba(9,9,11,0.98))',
+        minWidth: data.minWidth ?? nodeDefaults.minWidth,
+        minHeight: data.minHeight ?? nodeDefaults.minHeight,
       }}
     >
       {data.handles !== false && (
         <>
-          <Handle
-            type="target"
-            position={Position.Left}
-            style={{ width: 8, height: 8, background: accent, borderColor: '#020617' }}
-          />
-          <Handle
-            type="source"
-            position={Position.Right}
-            style={{ width: 8, height: 8, background: accent, borderColor: '#020617' }}
-          />
+          <Handle type="target" position={Position.Left} style={nodeHandleStyle(accent)} />
+          <Handle type="source" position={Position.Right} style={nodeHandleStyle(accent)} />
         </>
       )}
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 8,
-            display: 'grid',
-            placeItems: 'center',
-            color: accent,
-            background: `${accent}18`,
-            border: `1px solid ${accent}44`,
-          }}
-        >
-          <Icon size={20} strokeWidth={2.2} />
+      <div className="proof-node__header">
+        <div className="proof-node__icon" aria-hidden="true">
+          <Icon size={21} strokeWidth={2.25} />
         </div>
-        <div>
-          <div
-            style={{
-              color: '#f8fafc',
-              fontSize: 15,
-              fontWeight: 760,
-              letterSpacing: 0,
-              lineHeight: 1.15,
-            }}
-          >
-            {data.label}
-          </div>
-          {data.kicker && (
-            <div
-              style={{
-                marginTop: 4,
-                color: data.kickerColor ?? palette.slate300,
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: 0,
-              }}
-            >
-              {data.kicker}
-            </div>
-          )}
+        <div className="proof-node__copy">
+          {data.kicker && <div className="proof-node__kicker">{data.kicker}</div>}
+          <div className="proof-node__title">{data.label}</div>
         </div>
       </div>
 
-      {data.description && (
-        <div
-          style={{
-            marginTop: 12,
-            color: '#94a3b8',
-            fontSize: 12,
-            lineHeight: 1.35,
-          }}
-        >
-          {data.description}
+      {data.description && <div className="proof-node__description">{data.description}</div>}
+
+      {data.metrics?.length > 0 && (
+        <div className="proof-node__metrics">
+          {data.metrics.map((metric) => (
+            <div className="proof-node__metric" key={`${data.label}-${metric.value}`}>
+              <span>{metric.value}</span>
+              <small>{metric.label}</small>
+            </div>
+          ))}
         </div>
       )}
 
       {data.badges?.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 12 }}>
+        <div className="proof-node__badges">
           {data.badges.map((badge) => (
-            <span
-              key={badge}
-              style={{
-                color: '#e2e8f0',
-                border: `1px solid ${accent}55`,
-                background: `${accent}14`,
-                borderRadius: 6,
-                padding: '4px 7px',
-                fontSize: 10,
-                fontWeight: 650,
-                letterSpacing: 0,
-              }}
-            >
+            <span className="proof-node__badge" key={badge}>
               {badge}
             </span>
           ))}
@@ -167,223 +165,245 @@ function ArchitectureNode({ data, selected }) {
       )}
     </div>
   );
-}
+});
 
-function BoundaryNode({ data, selected }) {
+const BoundaryNode = memo(function BoundaryNode({ data, selected }) {
   return (
-    <div
-      style={{
-        ...nodeShell,
-        minWidth: 300,
-        minHeight: 148,
-        padding: 18,
-        border: `2px solid ${selected ? '#fff1f2' : palette.red}`,
-        background: 'linear-gradient(180deg, rgba(69,10,10,0.98), rgba(9,9,11,0.98))',
-        boxShadow: `0 0 0 1px ${palette.red}55, 0 0 44px ${palette.red}88, inset 0 0 28px ${palette.red}20`,
-      }}
-    >
-      <Handle
-        type="target"
-        position={Position.Left}
-        style={{ width: 10, height: 10, background: palette.red, borderColor: '#fff1f2' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{ width: 10, height: 10, background: palette.red, borderColor: '#fff1f2' }}
-      />
+    <div className={`boundary-node ${selected ? 'boundary-node--selected' : ''}`}>
+      <Handle type="target" position={Position.Left} style={nodeHandleStyle(palette.red)} />
+      <Handle type="source" position={Position.Right} style={nodeHandleStyle(palette.red)} />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div
-          style={{
-            width: 46,
-            height: 46,
-            borderRadius: 8,
-            display: 'grid',
-            placeItems: 'center',
-            color: '#fff1f2',
-            background: `${palette.red}2b`,
-            border: `1px solid ${palette.red}`,
-          }}
-        >
-          <LockKeyhole size={24} />
+      <div className="boundary-node__header">
+        <div className="boundary-node__icon" aria-hidden="true">
+          <LockKeyhole size={26} />
         </div>
         <div>
-          <div style={{ color: '#fff1f2', fontSize: 17, fontWeight: 820, lineHeight: 1.1 }}>
-            {data.label}
-          </div>
-          <div
-            style={{
-              marginTop: 5,
-              color: '#fecdd3',
-              fontSize: 11,
-              fontWeight: 760,
-              textTransform: 'uppercase',
-              letterSpacing: 0,
-            }}
-          >
-            Structural Chokepoint
-          </div>
+          <div className="boundary-node__kicker">Structural Chokepoint</div>
+          <div className="boundary-node__title">{data.label}</div>
         </div>
       </div>
 
-      <div style={{ color: '#fecdd3', fontSize: 12, lineHeight: 1.45, marginTop: 14 }}>
-        Type-safe JSON-RPC calls cross here. The LLM layer receives no raw shell executor
-        and cannot write to registered evidence roots.
+      <div className="boundary-node__body">
+        Type-safe JSON-RPC calls cross here. The LLM receives no raw shell executor,
+        and writes to registered evidence roots are denied before tools run.
       </div>
 
-      <div
-        style={{
-          marginTop: 12,
-          color: '#fff1f2',
-          fontSize: 11,
-          fontWeight: 760,
-          border: '1px solid rgba(255,255,255,0.18)',
-          background: 'rgba(255,255,255,0.07)',
-          borderRadius: 6,
-          padding: '8px 10px',
-        }}
-      >
-        Click to verify zero-spoliation enforcement
-      </div>
+      <div className="boundary-node__callout">Click to verify zero-spoliation enforcement</div>
     </div>
   );
-}
+});
 
-function GroupFrame({ data, selected }) {
-  const borderStyle = data.borderStyle ?? 'solid';
+const GroupFrame = memo(function GroupFrame({ data, selected }) {
   const accent = data.accent ?? palette.teal;
 
   return (
     <div
+      className={`proof-group ${selected ? 'proof-group--selected' : ''}`}
       style={{
-        width: '100%',
-        height: '100%',
-        borderRadius: 8,
-        border: `${data.borderWidth ?? 2}px ${borderStyle} ${accent}`,
-        background: data.background ?? 'rgba(15,23,42,0.34)',
-        boxShadow: selected ? `0 0 0 1px #f8fafc, 0 0 36px ${accent}44` : `0 0 32px ${accent}18`,
-        padding: 14,
-        pointerEvents: 'none',
+        '--group-accent': accent,
+        '--group-background': data.background ?? 'rgba(15,23,42,0.42)',
+        '--group-border-style': data.borderStyle ?? 'solid',
       }}
     >
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 8,
-          color: data.labelColor ?? '#f8fafc',
-          fontSize: 12,
-          fontWeight: 820,
-          textTransform: 'uppercase',
-          letterSpacing: 0,
-          padding: '6px 9px',
-          borderRadius: 6,
-          background: 'rgba(2,6,23,0.74)',
-          border: `1px solid ${accent}55`,
-        }}
-      >
-        {data.icon}
-        {data.label}
+      <div className="proof-group__label">
+        <span className="proof-group__icon">{data.icon}</span>
+        <span>{data.label}</span>
       </div>
-      {data.caption && (
-        <div
-          style={{
-            marginTop: 8,
-            maxWidth: 420,
-            color: '#94a3b8',
-            fontSize: 11,
-            lineHeight: 1.35,
-          }}
-        >
-          {data.caption}
-        </div>
-      )}
+      {data.caption && <div className="proof-group__caption">{data.caption}</div>}
     </div>
+  );
+});
+
+const CapabilityMatrixNode = memo(function CapabilityMatrixNode({ data, selected }) {
+  return (
+    <div className={`capability-node ${selected ? 'capability-node--selected' : ''}`}>
+      <Handle type="target" position={Position.Left} style={nodeHandleStyle(palette.violet)} />
+      <div className="capability-node__header">
+        <FileCheck2 size={20} />
+        <div>
+          <div className="capability-node__kicker">{data.kicker}</div>
+          <div className="capability-node__title">{data.label}</div>
+        </div>
+      </div>
+      <div className="capability-node__chips">
+        {data.capabilities.map((capability) => (
+          <span key={capability}>{capability}</span>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+function TrustEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  sourcePosition,
+  targetPosition,
+  markerEnd,
+  style,
+  data,
+}) {
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
+    sourceX,
+    sourceY,
+    sourcePosition,
+    targetX,
+    targetY,
+    targetPosition,
+    borderRadius: data?.borderRadius ?? 24,
+  });
+  const tone = toneMap[data?.tone] ?? palette.blue;
+
+  return (
+    <>
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        markerEnd={markerEnd}
+        style={style}
+        className={data?.animated ? 'trust-edge-path trust-edge-path--animated' : 'trust-edge-path'}
+      />
+      {data?.label && (
+        <EdgeLabelRenderer>
+          <div
+            className="trust-edge-label"
+            style={{
+              '--edge-tone': tone,
+              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+            }}
+          >
+            {data.label}
+          </div>
+        </EdgeLabelRenderer>
+      )}
+    </>
   );
 }
 
 const nodeTypes = {
   architecture: ArchitectureNode,
   boundary: BoundaryNode,
+  capabilityMatrix: CapabilityMatrixNode,
   groupFrame: GroupFrame,
 };
 
-const marker = (color) => ({
-  type: MarkerType.ArrowClosed,
-  width: 18,
-  height: 18,
-  color,
-});
-
-const blueEdge = {
-  type: 'smoothstep',
-  animated: true,
-  markerEnd: marker(palette.blue),
-  style: { stroke: palette.blue, strokeWidth: 2.4, strokeDasharray: '8 7' },
+const edgeTypes = {
+  trust: TrustEdge,
 };
 
-const redEdge = {
-  type: 'smoothstep',
-  markerEnd: marker(palette.red),
-  style: { stroke: palette.red, strokeWidth: 4.8 },
-  labelStyle: { fill: '#fecdd3', fontWeight: 800, fontSize: 12 },
-  labelBgStyle: { fill: 'rgba(69,10,10,0.96)', stroke: palette.red, strokeWidth: 1 },
-  labelBgPadding: [10, 6],
-  labelBgBorderRadius: 6,
-};
+function marker(color) {
+  return {
+    type: MarkerType.ArrowClosed,
+    width: 18,
+    height: 18,
+    color,
+  };
+}
 
-const tealEdge = {
-  type: 'smoothstep',
-  animated: true,
-  markerEnd: marker(palette.teal),
-  style: { stroke: palette.teal, strokeWidth: 2.8, strokeDasharray: '10 6' },
-  labelStyle: { fill: '#ccfbf1', fontWeight: 800, fontSize: 12 },
-  labelBgStyle: { fill: 'rgba(19,78,74,0.92)', stroke: palette.teal, strokeWidth: 1 },
-  labelBgPadding: [10, 6],
-  labelBgBorderRadius: 6,
-};
+function makeEdge(id, source, target, tone, label, options = {}) {
+  const color = toneMap[tone] ?? palette.blue;
+
+  return {
+    id,
+    source,
+    target,
+    type: 'trust',
+    markerEnd: marker(color),
+    zIndex: options.zIndex ?? 3,
+    data: {
+      tone,
+      label,
+      animated: options.animated ?? true,
+      borderRadius: options.borderRadius,
+    },
+    style: {
+      stroke: color,
+      strokeWidth: options.strokeWidth ?? 2.8,
+      strokeDasharray: options.dashed === false ? 'none' : options.dash ?? '10 7',
+      filter: `drop-shadow(0 0 6px ${color}88)`,
+    },
+  };
+}
 
 function buildNodes() {
   return [
     {
       id: 'prompt-layer',
       type: 'groupFrame',
-      position: { x: 280, y: 56 },
-      style: { width: 540, height: 430 },
-      draggable: true,
+      position: { x: 320, y: 70 },
+      style: { width: 760, height: 720 },
+      selectable: false,
+      draggable: false,
       data: {
         label: 'Prompt-Based Isolation Layer',
-        caption: 'Volatile LLM generation is allowed to reason, plan, and critique, but not to mutate evidence or execute shell commands.',
+        caption:
+          'Volatile reasoning can plan, critique, and request tools, but cannot mutate evidence or invoke shell access.',
         accent: palette.amber,
         borderStyle: 'dashed',
-        background: 'rgba(120, 53, 15, 0.18)',
-        icon: <BrainCircuit size={14} />,
+        background: 'rgba(120, 53, 15, 0.16)',
+        icon: <BrainCircuit size={15} />,
       },
     },
     {
-      id: 'sift-tools',
+      id: 'sift-zone',
       type: 'groupFrame',
-      position: { x: 1190, y: 58 },
-      style: { width: 500, height: 430 },
-      draggable: true,
+      position: { x: 1470, y: 70 },
+      style: { width: 850, height: 720 },
+      selectable: false,
+      draggable: false,
       data: {
         label: 'Strict Architectural Guardrails (Zero Spoliation)',
-        caption: 'Typed wrappers expose read-only forensic extraction. Original evidence roots are never writable from this zone.',
+        caption:
+          'Read-only custom MCP tools convert forensic artifacts into typed observations while preserving original evidence.',
         accent: palette.teal,
-        background: 'rgba(20, 184, 166, 0.12)',
-        icon: <ShieldCheck size={14} />,
+        background: 'rgba(20, 184, 166, 0.11)',
+        icon: <ShieldCheck size={15} />,
+      },
+    },
+    {
+      id: 'proof-zone',
+      type: 'groupFrame',
+      position: { x: 2490, y: 70 },
+      style: { width: 880, height: 720 },
+      selectable: false,
+      draggable: false,
+      data: {
+        label: 'Deterministic Verification and Evidence Graph',
+        caption:
+          'Code-based validators normalize timelines, detect anti-forensics, and downgrade unsupported claims before reporting.',
+        accent: palette.indigo,
+        background: 'rgba(67, 56, 202, 0.12)',
+        icon: <Database size={15} />,
+      },
+    },
+    {
+      id: 'delivery-zone',
+      type: 'groupFrame',
+      position: { x: 3550, y: 70 },
+      style: { width: 700, height: 720 },
+      selectable: false,
+      draggable: false,
+      data: {
+        label: 'Judge-Facing Proof Package',
+        caption:
+          'Reports, accuracy metrics, traces, and submission artifacts are linked back to graph evidence.',
+        accent: palette.violet,
+        background: 'rgba(88, 28, 135, 0.13)',
+        icon: <FileCheck2 size={15} />,
       },
     },
     {
       id: 'user',
       type: 'architecture',
-      position: { x: 40, y: 205 },
-      style: { width: 210, height: 116 },
+      position: { x: 40, y: 328 },
+      style: { width: 240 },
       data: {
         label: 'User / CLI',
         kicker: 'Investigation Entry',
-        description: 'proofsift run / benchmark / trace',
+        description: 'proofsift run, benchmark, trace, and submission validation.',
         icon: Terminal,
         accent: '#94a3b8',
         badges: ['CLI', 'SIFT VM', 'Devpost'],
@@ -394,12 +414,12 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'prompt-layer',
       extent: 'parent',
-      position: { x: 44, y: 112 },
-      style: { width: 205, height: 120 },
+      position: { x: 42, y: 132 },
+      style: { width: 272 },
       data: {
         label: 'Iterative Engine',
         kicker: 'Loop Control',
-        description: 'Max-iteration orchestration with graceful degradation.',
+        description: 'Coordinates max-iteration investigation, verifier feedback, and graceful recovery.',
         icon: Route,
         accent: palette.blue,
         badges: ['Plan', 'Run', 'Correct'],
@@ -410,12 +430,13 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'prompt-layer',
       extent: 'parent',
-      position: { x: 286, y: 82 },
-      style: { width: 214, height: 124 },
+      position: { x: 392, y: 108 },
+      style: { width: 318 },
       data: {
         label: 'Investigator Agent',
         kicker: 'Hypothesis Generation',
-        description: 'Creates candidate findings and selects forensic pivots.',
+        description:
+          'Generates candidate claims and selects forensic pivots across memory, disk, registry, and logs.',
         icon: Bot,
         accent: palette.blue,
         badges: ['C2', 'Execution', 'Persistence'],
@@ -426,37 +447,105 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'prompt-layer',
       extent: 'parent',
-      position: { x: 286, y: 260 },
-      style: { width: 214, height: 126 },
+      position: { x: 392, y: 318 },
+      style: { width: 318 },
       data: {
         label: 'Critic / Verifier Agent',
         kicker: 'Falsification Loop',
-        description: 'Validates MITRE sequence, clock drift, and anti-forensics gaps.',
+        description:
+          'Blocks unsupported findings and requires multi-source corroboration before confirmation.',
         icon: ShieldAlert,
         accent: palette.amber,
         badges: ['Verify', 'Falsify', 'Downgrade'],
       },
     },
     {
+      id: 'self-correction',
+      type: 'architecture',
+      parentId: 'prompt-layer',
+      extent: 'parent',
+      position: { x: 42, y: 390 },
+      style: { width: 272 },
+      data: {
+        label: 'Self-Correction Scheduler',
+        kicker: 'Targeted Re-Search',
+        description:
+          'Turns verifier gaps into exact next-tool instructions for missing attack-chain links.',
+        icon: GitBranch,
+        accent: palette.amber,
+        badges: ['14 corrections', 'Trace-linked'],
+      },
+    },
+    {
+      id: 'prompt-contract',
+      type: 'architecture',
+      parentId: 'prompt-layer',
+      extent: 'parent',
+      position: { x: 112, y: 565 },
+      style: { width: 548 },
+      data: {
+        label: 'Prompt Contract and Volatile Scratchpad',
+        kicker: 'Soft Guardrails',
+        description:
+          'Reasoning stays disposable. Durable truth only lands through typed MCP outputs and graph writes.',
+        icon: BrainCircuit,
+        accent: palette.amber,
+        badges: ['No raw evidence write', 'No shell terminal', 'Tool-only pivots'],
+      },
+    },
+    {
       id: 'boundary',
       type: 'boundary',
-      position: { x: 885, y: 208 },
-      style: { width: 300, height: 156 },
+      position: { x: 1130, y: 292 },
+      style: { width: 310 },
       data: {
         label: 'SafePathPolicy & MCP JSON-RPC Bridge',
       },
     },
     {
+      id: 'evidence-root',
+      type: 'architecture',
+      parentId: 'sift-zone',
+      extent: 'parent',
+      position: { x: 44, y: 105 },
+      style: { width: 302 },
+      data: {
+        label: 'Read-Only Evidence Root',
+        kicker: 'Immutable Case Mount',
+        description: 'Case artifacts are opened through SafePathPolicy and never modified in place.',
+        icon: LockKeyhole,
+        accent: palette.teal,
+        badges: ['deny writes', 'path scoped', 'hash first'],
+      },
+    },
+    {
+      id: 'tool-registry',
+      type: 'architecture',
+      parentId: 'sift-zone',
+      extent: 'parent',
+      position: { x: 436, y: 105 },
+      style: { width: 344 },
+      data: {
+        label: 'Typed MCP Tool Registry',
+        kicker: 'Parser Facade',
+        description:
+          'Pydantic-like typed contracts expose forensic parsers instead of arbitrary command execution.',
+        icon: Braces,
+        accent: palette.teal,
+        badges: ['JSON-RPC', 'structured errors', 'no shell'],
+      },
+    },
+    {
       id: 'disk',
       type: 'architecture',
-      parentId: 'sift-tools',
+      parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 36, y: 96 },
-      style: { width: 210, height: 118 },
+      position: { x: 44, y: 300 },
+      style: { width: 238 },
       data: {
         label: 'Disk Parsers',
         kicker: 'Prefetch / Amcache / MFT',
-        description: 'Execution caches, filesystem timelines, Shimcache, and USN.',
+        description: 'Execution caches, filesystem timelines, Shimcache, and USN correlation.',
         icon: HardDrive,
         accent: palette.teal,
         badges: ['MFT', 'USN', 'Prefetch'],
@@ -465,14 +554,14 @@ function buildNodes() {
     {
       id: 'memory',
       type: 'architecture',
-      parentId: 'sift-tools',
+      parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 270, y: 96 },
-      style: { width: 210, height: 118 },
+      position: { x: 312, y: 300 },
+      style: { width: 238 },
       data: {
         label: 'Memory Parsers',
         kicker: 'Volatility / Malfind',
-        description: 'pslist, psscan, netscan, and injected-memory regions.',
+        description: 'pslist, psscan, netscan, and injected-memory region extraction.',
         icon: MemoryStick,
         accent: palette.teal,
         badges: ['psscan', 'netscan', 'malfind'],
@@ -481,10 +570,10 @@ function buildNodes() {
     {
       id: 'logs',
       type: 'architecture',
-      parentId: 'sift-tools',
+      parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 154, y: 270 },
-      style: { width: 220, height: 118 },
+      position: { x: 580, y: 300 },
+      style: { width: 238 },
       data: {
         label: 'Log Parsers',
         kicker: 'EVTX / PowerShell',
@@ -495,33 +584,230 @@ function buildNodes() {
       },
     },
     {
+      id: 'malformed-signal',
+      type: 'architecture',
+      parentId: 'sift-zone',
+      extent: 'parent',
+      position: { x: 44, y: 520 },
+      style: { width: 360 },
+      data: {
+        label: 'Structured Parser Anomaly Capture',
+        kicker: 'Defensive Degradation',
+        description:
+          'Malformed artifacts become graph signals instead of crashing or silently disappearing.',
+        icon: ShieldAlert,
+        accent: palette.green,
+        badges: ['exception to observation', 'trace logged'],
+      },
+    },
+    {
+      id: 'spoliation-probe',
+      type: 'architecture',
+      parentId: 'sift-zone',
+      extent: 'parent',
+      position: { x: 462, y: 520 },
+      style: { width: 356 },
+      data: {
+        label: 'Blocked Spoliation Probe',
+        kicker: 'Administrative Proof',
+        description:
+          'Intentional write attempts are denied and recorded for the accuracy report.',
+        icon: ShieldCheck,
+        accent: palette.green,
+        badges: ['blocked write', 'audit proof'],
+      },
+    },
+    {
       id: 'evidence-graph',
       type: 'architecture',
-      position: { x: 1780, y: 142 },
-      style: { width: 250, height: 128 },
+      parentId: 'proof-zone',
+      extent: 'parent',
+      position: { x: 46, y: 100 },
+      style: { width: 326 },
       data: {
         label: 'SQLite Evidence Graph',
-        kicker: 'Provable Audit Trail',
-        description: 'Claims, observations, corrections, anomalies, and trace links.',
+        kicker: 'Claims and Observations',
+        description:
+          'Artifacts, claims, corrections, anomalies, and source trace links share one queryable audit surface.',
         icon: Database,
         accent: palette.indigo,
         background: 'linear-gradient(180deg, rgba(49,46,129,0.96), rgba(17,24,39,0.98))',
-        badges: ['claims', 'observations', 'trace'],
+        metrics: [
+          { value: '6', label: 'claims' },
+          { value: '49', label: 'events' },
+        ],
+        badges: ['observations', 'claim_evidence', 'corrections'],
+      },
+    },
+    {
+      id: 'confidence',
+      type: 'architecture',
+      parentId: 'proof-zone',
+      extent: 'parent',
+      position: { x: 46, y: 332 },
+      style: { width: 326 },
+      data: {
+        label: 'Claim Confidence Scorer',
+        kicker: 'Verify-Falsify Gate',
+        description:
+          'Requires multi-source corroboration and downgrades claims when counter-evidence appears.',
+        icon: Activity,
+        accent: palette.indigo,
+        badges: ['precision 1.0', 'recall 1.0', 'no hallucinated confirmed'],
       },
     },
     {
       id: 'execution-log',
       type: 'architecture',
-      position: { x: 1780, y: 332 },
-      style: { width: 250, height: 128 },
+      parentId: 'proof-zone',
+      extent: 'parent',
+      position: { x: 46, y: 535 },
+      style: { width: 326 },
       data: {
         label: 'execution_log.jsonl',
-        kicker: 'Timestamped Tool Trace',
-        description: 'Every tool call, token metric, correction, and blocked spoliation probe.',
+        kicker: 'Granular Tool Trace',
+        description:
+          'Timestamped tool calls, correction reasons, token metrics, and blocked write attempts.',
         icon: Radar,
         accent: palette.violet,
         background: 'linear-gradient(180deg, rgba(76,29,149,0.94), rgba(17,24,39,0.98))',
-        badges: ['JSONL', 'tokens', 'corrections'],
+        badges: ['JSONL', 'tokens', 'spoliation'],
+      },
+    },
+    {
+      id: 'clock-drift',
+      type: 'architecture',
+      parentId: 'proof-zone',
+      extent: 'parent',
+      position: { x: 456, y: 82 },
+      style: { width: 360 },
+      data: {
+        label: 'Clock-Drift Normalizer',
+        kicker: 'Temporal Delta',
+        description:
+          'Finds shared anchor events and offsets cross-source timestamps before correlation.',
+        icon: Clock,
+        accent: palette.indigo,
+        badges: ['anchor match', '+120s delta', 'UTC normalized'],
+      },
+    },
+    {
+      id: 'anti-forensics',
+      type: 'architecture',
+      parentId: 'proof-zone',
+      extent: 'parent',
+      position: { x: 456, y: 292 },
+      style: { width: 360 },
+      data: {
+        label: 'Differential Anti-Forensics Detector',
+        kicker: 'Timestomp Signal',
+        description:
+          'Compares MFT, USN, and Prefetch execution order for impossible or divergent timestamps.',
+        icon: FileSearch,
+        accent: palette.red,
+        badges: ['MFT vs Prefetch', '2 anomalies', 'confidence multiplier'],
+      },
+    },
+    {
+      id: 'mitre',
+      type: 'architecture',
+      parentId: 'proof-zone',
+      extent: 'parent',
+      position: { x: 456, y: 505 },
+      style: { width: 360 },
+      data: {
+        label: 'MITRE ATT&CK Sequence Validator',
+        kicker: 'Behavioral State Machine',
+        description:
+          'Requires logical progression from execution or persistence before high-impact C2 findings.',
+        icon: Network,
+        accent: palette.amber,
+        badges: ['Execution', 'Persistence', 'C2'],
+      },
+    },
+    {
+      id: 'final-report',
+      type: 'architecture',
+      parentId: 'delivery-zone',
+      extent: 'parent',
+      position: { x: 42, y: 100 },
+      style: { width: 280 },
+      data: {
+        label: 'Final Forensic Report',
+        kicker: 'Judge-Readable Finding',
+        description:
+          'Only confirmed claims are promoted, with graph-backed evidence and correction history.',
+        icon: ScrollText,
+        accent: palette.violet,
+        badges: ['report_3.md', 'HTML', 'Markdown'],
+      },
+    },
+    {
+      id: 'benchmark',
+      type: 'architecture',
+      parentId: 'delivery-zone',
+      extent: 'parent',
+      position: { x: 376, y: 100 },
+      style: { width: 280 },
+      data: {
+        label: 'Benchmark Harness',
+        kicker: 'Ground Truth Scoring',
+        description:
+          'Validates expected findings, false positives, hallucinated confirmations, and recall.',
+        icon: Activity,
+        accent: palette.green,
+        metrics: [
+          { value: '1.0', label: 'precision' },
+          { value: '1.0', label: 'recall' },
+        ],
+        badges: ['passed', '0 FP'],
+      },
+    },
+    {
+      id: 'accuracy-report',
+      type: 'architecture',
+      parentId: 'delivery-zone',
+      extent: 'parent',
+      position: { x: 42, y: 315 },
+      style: { width: 280 },
+      data: {
+        label: 'Accuracy and Spoliation Report',
+        kicker: 'Submission Proof',
+        description:
+          'Documents false-positive metrics, clock drift, anomalies, and blocked write tests.',
+        icon: ShieldCheck,
+        accent: palette.violet,
+        badges: ['accuracy_report.md', 'blocked writes'],
+      },
+    },
+    {
+      id: 'submission-docs',
+      type: 'architecture',
+      parentId: 'delivery-zone',
+      extent: 'parent',
+      position: { x: 376, y: 315 },
+      style: { width: 280 },
+      data: {
+        label: 'Submission Docs Bundle',
+        kicker: 'Devpost-Ready',
+        description:
+          'License, README, dataset documentation, architecture diagram, and execution traces.',
+        icon: FileCheck2,
+        accent: palette.violet,
+        badges: ['MIT', 'README', 'dataset docs'],
+      },
+    },
+    {
+      id: 'capability-matrix',
+      type: 'capabilityMatrix',
+      parentId: 'delivery-zone',
+      extent: 'parent',
+      position: { x: 42, y: 522 },
+      style: { width: 614 },
+      data: {
+        label: 'ProofSIFT Capability Matrix',
+        kicker: 'Integrated Production Surface',
+        capabilities: chipSets.capabilityMatrix,
       },
     },
   ];
@@ -529,110 +815,113 @@ function buildNodes() {
 
 function buildEdges() {
   return [
-    { id: 'user-engine', source: 'user', target: 'engine', ...blueEdge },
-    { id: 'engine-investigator', source: 'engine', target: 'investigator', ...blueEdge },
-    { id: 'investigator-critic', source: 'investigator', target: 'critic', ...blueEdge },
-    {
-      id: 'critic-boundary',
-      source: 'critic',
-      target: 'boundary',
-      label: 'Type-Safe Call (No Shell Access)',
-      ...redEdge,
-    },
-    {
-      id: 'boundary-disk',
-      source: 'boundary',
-      target: 'disk',
-      label: 'Read-Only Output Extraction',
-      ...tealEdge,
-    },
-    {
-      id: 'boundary-memory',
-      source: 'boundary',
-      target: 'memory',
-      label: 'Read-Only Output Extraction',
-      ...tealEdge,
-    },
-    {
-      id: 'boundary-logs',
-      source: 'boundary',
-      target: 'logs',
-      label: 'Read-Only Output Extraction',
-      ...tealEdge,
-    },
-    {
-      id: 'disk-graph',
-      source: 'disk',
-      target: 'evidence-graph',
-      label: 'Read-Only Output Extraction',
-      ...tealEdge,
-    },
-    {
-      id: 'memory-graph',
-      source: 'memory',
-      target: 'evidence-graph',
-      label: 'Read-Only Output Extraction',
-      ...tealEdge,
-    },
-    {
-      id: 'logs-graph',
-      source: 'logs',
-      target: 'evidence-graph',
-      label: 'Read-Only Output Extraction',
-      ...tealEdge,
-    },
-    {
-      id: 'graph-log',
-      source: 'evidence-graph',
-      target: 'execution-log',
-      animated: true,
-      type: 'smoothstep',
-      markerEnd: marker(palette.violet),
-      style: { stroke: palette.violet, strokeWidth: 2.5, strokeDasharray: '7 7' },
-    },
+    makeEdge('user-engine', 'user', 'engine', 'blue', 'CLI command starts loop'),
+    makeEdge('engine-investigator', 'engine', 'investigator', 'blue', 'volatile reasoning flow'),
+    makeEdge('investigator-critic', 'investigator', 'critic', 'blue', 'candidate claim review'),
+    makeEdge('critic-correction', 'critic', 'self-correction', 'amber', 'missing proof becomes next pivot'),
+    makeEdge('correction-engine', 'self-correction', 'engine', 'amber', 'retry with targeted tools', {
+      borderRadius: 36,
+    }),
+    makeEdge('critic-boundary', 'critic', 'boundary', 'red', 'Type-Safe Call (No Shell Access)', {
+      strokeWidth: 5.2,
+      dashed: false,
+      animated: false,
+      zIndex: 5,
+    }),
+    makeEdge('boundary-root', 'boundary', 'evidence-root', 'red', 'Path policy validates evidence root', {
+      strokeWidth: 4.2,
+      dashed: false,
+      animated: false,
+    }),
+    makeEdge('boundary-tools', 'boundary', 'tool-registry', 'red', 'MCP JSON-RPC schema gate', {
+      strokeWidth: 4.2,
+      dashed: false,
+      animated: false,
+    }),
+    makeEdge('root-disk', 'evidence-root', 'disk', 'teal', 'read-only artifact access'),
+    makeEdge('root-memory', 'evidence-root', 'memory', 'teal', 'read-only artifact access'),
+    makeEdge('root-logs', 'evidence-root', 'logs', 'teal', 'read-only artifact access'),
+    makeEdge('tools-disk', 'tool-registry', 'disk', 'teal', 'typed parser call'),
+    makeEdge('tools-memory', 'tool-registry', 'memory', 'teal', 'typed parser call'),
+    makeEdge('tools-logs', 'tool-registry', 'logs', 'teal', 'typed parser call'),
+    makeEdge('disk-graph', 'disk', 'evidence-graph', 'teal', 'Read-Only Output Extraction'),
+    makeEdge('memory-graph', 'memory', 'evidence-graph', 'teal', 'Read-Only Output Extraction'),
+    makeEdge('logs-graph', 'logs', 'evidence-graph', 'teal', 'Read-Only Output Extraction'),
+    makeEdge('parser-signal-graph', 'malformed-signal', 'evidence-graph', 'green', 'malformed input logged as signal'),
+    makeEdge('probe-log', 'spoliation-probe', 'execution-log', 'green', 'blocked write trace'),
+    makeEdge('graph-clock', 'evidence-graph', 'clock-drift', 'indigo', 'anchor event optimization'),
+    makeEdge('graph-anti', 'evidence-graph', 'anti-forensics', 'indigo', 'MFT / USN / Prefetch diff'),
+    makeEdge('graph-mitre', 'evidence-graph', 'mitre', 'indigo', 'claim sequence validation'),
+    makeEdge('clock-confidence', 'clock-drift', 'confidence', 'indigo', 'normalized timeline'),
+    makeEdge('anti-confidence', 'anti-forensics', 'confidence', 'red', 'confidence adjustment'),
+    makeEdge('mitre-confidence', 'mitre', 'confidence', 'amber', 'logical chain gate'),
+    makeEdge('mitre-correction', 'mitre', 'self-correction', 'amber', 'targeted missing-link instruction'),
+    makeEdge('confidence-report', 'confidence', 'final-report', 'violet', 'confirmed claims only'),
+    makeEdge('log-benchmark', 'execution-log', 'benchmark', 'violet', 'trace and token metrics'),
+    makeEdge('confidence-accuracy', 'confidence', 'accuracy-report', 'violet', 'precision / recall / FP accounting'),
+    makeEdge('report-docs', 'final-report', 'submission-docs', 'violet', 'judge package cross-links'),
+    makeEdge('benchmark-docs', 'benchmark', 'submission-docs', 'green', 'reproducible score evidence'),
+    makeEdge('docs-matrix', 'submission-docs', 'capability-matrix', 'violet', 'integrated feature map'),
   ];
 }
 
 function GuardrailToast({ onClose }) {
   return (
-    <div
-      role="status"
-      style={{
-        width: 410,
-        borderRadius: 8,
-        border: `1px solid ${palette.red}`,
-        background: 'rgba(69,10,10,0.96)',
-        color: '#fff1f2',
-        boxShadow: `0 0 42px ${palette.red}88`,
-        padding: 16,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div className="guardrail-toast" role="status">
+      <div className="guardrail-toast__header">
         <ShieldAlert size={20} />
-        <div style={{ fontWeight: 860, fontSize: 13, letterSpacing: 0 }}>
-          SPOLIATION BLOCKED
-        </div>
+        <span>SPOLIATION BLOCKED</span>
       </div>
-      <div style={{ marginTop: 9, fontSize: 12, lineHeight: 1.45, color: '#fecdd3' }}>
-        All writes to the evidence root are structurally intercepted and dropped by
-        the Python Custom MCP Server.
+      <div className="guardrail-toast__body">
+        All writes to the evidence root are structurally intercepted and dropped by the Python
+        Custom MCP Server.
       </div>
-      <button
-        type="button"
-        onClick={onClose}
-        style={{
-          marginTop: 12,
-          height: 30,
-          borderRadius: 6,
-          border: '1px solid rgba(255,255,255,0.22)',
-          background: 'rgba(255,255,255,0.08)',
-          color: '#fff1f2',
-          fontWeight: 760,
-          cursor: 'pointer',
-        }}
-      >
+      <button type="button" onClick={onClose}>
         Dismiss
       </button>
+    </div>
+  );
+}
+
+function NodeInspector({ node }) {
+  if (!node) {
+    return (
+      <div className="node-inspector">
+        <div className="node-inspector__kicker">Selection Inspector</div>
+        <div className="node-inspector__title">Click any proof layer</div>
+        <div className="node-inspector__body">
+          The panel shows full component text here, so compact graph nodes never need to hide
+          important audit wording.
+        </div>
+      </div>
+    );
+  }
+
+  const details = node.data ?? {};
+
+  return (
+    <div className="node-inspector">
+      <div className="node-inspector__kicker">{details.kicker ?? 'Architecture Layer'}</div>
+      <div className="node-inspector__title">{details.label}</div>
+      {details.description && <div className="node-inspector__body">{details.description}</div>}
+      {details.badges?.length > 0 && (
+        <div className="node-inspector__chips">
+          {details.badges.map((badge) => (
+            <span key={badge}>{badge}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ViewControls({ onFit }) {
+  return (
+    <div className="view-controls">
+      <button type="button" onClick={onFit}>
+        Fit All
+      </button>
+      <span>Drag, zoom, and click the red boundary for the enforcement proof.</span>
     </div>
   );
 }
@@ -641,61 +930,46 @@ function DiagramSurface() {
   const nodes = useMemo(() => buildNodes(), []);
   const edges = useMemo(() => buildEdges(), []);
   const [toastVisible, setToastVisible] = useState(false);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const flow = useReactFlow();
 
   const handleNodeClick = useCallback((_, node) => {
+    setSelectedNode(node);
     if (node.id === 'boundary') {
       setToastVisible(true);
     }
   }, []);
 
+  const fitAll = useCallback(() => {
+    flow.fitView({ duration: 520, padding: 0.12 });
+  }, [flow]);
+
   return (
-    <section
-      style={{
-        width: '100%',
-        height: '100vh',
-        minHeight: 720,
-        background:
-          'radial-gradient(circle at 50% 0%, rgba(14,165,233,0.10), transparent 32%), #020617',
-        padding: 18,
-      }}
-    >
-      <div
-        style={{
-          height: '100%',
-          border: '1px solid rgba(148,163,184,0.18)',
-          borderRadius: 8,
-          background: 'rgba(9,9,11,0.82)',
-          overflow: 'hidden',
-          boxShadow: '0 30px 80px rgba(0,0,0,0.45)',
-        }}
-      >
+    <section className="architecture-shell">
+      <div className="architecture-frame">
         <ReactFlow
+          className="proof-flow"
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           fitView
-          fitViewOptions={{ padding: 0.11, minZoom: 0.42, maxZoom: 1.2 }}
-          minZoom={0.3}
+          fitViewOptions={{ padding: 0.14, minZoom: 0.18, maxZoom: 1.02 }}
+          minZoom={0.16}
           maxZoom={1.35}
           nodesDraggable
           nodesConnectable={false}
           elementsSelectable
           panOnDrag
           zoomOnScroll
+          elevateEdgesOnSelect
           onNodeClick={handleNodeClick}
-          defaultEdgeOptions={{ type: 'smoothstep' }}
+          onPaneClick={() => setSelectedNode(null)}
+          defaultEdgeOptions={{ zIndex: 3 }}
           proOptions={{ hideAttribution: true }}
         >
-          <Background color="#334155" gap={22} size={1} />
-          <Controls
-            position="bottom-left"
-            style={{
-              background: 'rgba(15,23,42,0.92)',
-              border: '1px solid rgba(148,163,184,0.22)',
-              borderRadius: 8,
-              overflow: 'hidden',
-            }}
-          />
+          <Background color="#334155" gap={26} size={1} />
+          <Controls position="bottom-left" className="proof-controls" />
           <MiniMap
             position="bottom-right"
             pannable
@@ -703,40 +977,42 @@ function DiagramSurface() {
             nodeStrokeWidth={3}
             nodeColor={(node) => {
               if (node.id === 'boundary') return palette.red;
-              if (node.parentId === 'sift-tools') return palette.teal;
+              if (node.parentId === 'sift-zone') return palette.teal;
               if (node.parentId === 'prompt-layer') return palette.amber;
-              if (node.id.includes('graph') || node.id.includes('log')) return palette.indigo;
+              if (node.parentId === 'proof-zone') return palette.indigo;
+              if (node.parentId === 'delivery-zone') return palette.violet;
               return '#64748b';
             }}
-            style={{
-              width: 170,
-              height: 108,
-              background: 'rgba(15,23,42,0.94)',
-              border: '1px solid rgba(148,163,184,0.22)',
-              borderRadius: 8,
-            }}
+            className="proof-minimap"
           />
           <Panel position="top-left">
-            <div
-              style={{
-                borderRadius: 8,
-                border: '1px solid rgba(148,163,184,0.22)',
-                background: 'rgba(2,6,23,0.84)',
-                padding: '12px 14px',
-                maxWidth: 430,
-              }}
-            >
-              <div style={{ color: '#f8fafc', fontWeight: 860, fontSize: 16 }}>
-                ProofSIFT Trust Architecture
-              </div>
-              <div style={{ marginTop: 5, color: '#94a3b8', fontSize: 12, lineHeight: 1.4 }}>
-                Prompt reasoning is visually separated from code-enforced,
-                read-only MCP boundaries and provable audit outputs.
+            <div className="hero-panel">
+              <div className="hero-panel__eyebrow">ProofSIFT Security Visualization</div>
+              <div className="hero-panel__title">Trust-Boundary Architecture</div>
+              <div className="hero-panel__body">
+                Prompt guardrails, code guardrails, forensic extraction, and judge-facing audit
+                outputs are separated into explicit zones.
               </div>
             </div>
           </Panel>
+          <Panel position="top-center">
+            <ViewControls onFit={fitAll} />
+          </Panel>
+          <Panel position="bottom-center">
+            <div className="legend-panel">
+              <span className="legend-panel__item legend-panel__item--blue">Reasoning</span>
+              <span className="legend-panel__item legend-panel__item--red">Security Gate</span>
+              <span className="legend-panel__item legend-panel__item--teal">Read-Only Tools</span>
+              <span className="legend-panel__item legend-panel__item--indigo">Verification</span>
+              <span className="legend-panel__item legend-panel__item--violet">Deliverables</span>
+            </div>
+          </Panel>
           <Panel position="top-right">
-            {toastVisible && <GuardrailToast onClose={() => setToastVisible(false)} />}
+            {toastVisible ? (
+              <GuardrailToast onClose={() => setToastVisible(false)} />
+            ) : (
+              <NodeInspector node={selectedNode} />
+            )}
           </Panel>
         </ReactFlow>
       </div>
@@ -751,4 +1027,3 @@ export default function ProofSIFTArchitectureFlow() {
     </ReactFlowProvider>
   );
 }
-
