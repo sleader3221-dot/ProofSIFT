@@ -66,7 +66,7 @@ const toneMap = {
 
 const nodeDefaults = {
   minWidth: 250,
-  minHeight: 142,
+  minHeight: 128,
 };
 
 const chipSets = {
@@ -272,7 +272,9 @@ function TrustEdge({
             className="trust-edge-label"
             style={{
               '--edge-tone': tone,
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              transform: `translate(-50%, -50%) translate(${labelX + data.labelOffsetX}px, ${
+                labelY + data.labelOffsetY
+              }px)`,
             }}
           >
             {data.label}
@@ -318,6 +320,8 @@ function makeEdge(id, source, target, tone, label, options = {}) {
       label,
       animated: options.animated ?? true,
       borderRadius: options.borderRadius,
+      labelOffsetX: options.labelOffsetX ?? 0,
+      labelOffsetY: options.labelOffsetY ?? 0,
     },
     style: {
       stroke: color,
@@ -333,8 +337,8 @@ function buildNodes() {
     {
       id: 'prompt-layer',
       type: 'groupFrame',
-      position: { x: 320, y: 70 },
-      style: { width: 760, height: 720 },
+      position: { x: 280, y: 64 },
+      style: { width: 600, height: 560 },
       selectable: false,
       draggable: false,
       data: {
@@ -350,8 +354,8 @@ function buildNodes() {
     {
       id: 'sift-zone',
       type: 'groupFrame',
-      position: { x: 1470, y: 70 },
-      style: { width: 850, height: 720 },
+      position: { x: 1250, y: 64 },
+      style: { width: 650, height: 560 },
       selectable: false,
       draggable: false,
       data: {
@@ -366,8 +370,8 @@ function buildNodes() {
     {
       id: 'proof-zone',
       type: 'groupFrame',
-      position: { x: 2490, y: 70 },
-      style: { width: 880, height: 720 },
+      position: { x: 280, y: 640 },
+      style: { width: 850, height: 560 },
       selectable: false,
       draggable: false,
       data: {
@@ -382,8 +386,8 @@ function buildNodes() {
     {
       id: 'delivery-zone',
       type: 'groupFrame',
-      position: { x: 3550, y: 70 },
-      style: { width: 700, height: 720 },
+      position: { x: 1250, y: 640 },
+      style: { width: 650, height: 600 },
       selectable: false,
       draggable: false,
       data: {
@@ -398,7 +402,7 @@ function buildNodes() {
     {
       id: 'user',
       type: 'architecture',
-      position: { x: 40, y: 328 },
+      position: { x: 36, y: 236 },
       style: { width: 240 },
       data: {
         label: 'User / CLI',
@@ -414,8 +418,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'prompt-layer',
       extent: 'parent',
-      position: { x: 42, y: 132 },
-      style: { width: 272 },
+      position: { x: 34, y: 112 },
+      style: { width: 236 },
       data: {
         label: 'Iterative Engine',
         kicker: 'Loop Control',
@@ -430,8 +434,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'prompt-layer',
       extent: 'parent',
-      position: { x: 392, y: 108 },
-      style: { width: 318 },
+      position: { x: 330, y: 98 },
+      style: { width: 236 },
       data: {
         label: 'Investigator Agent',
         kicker: 'Hypothesis Generation',
@@ -447,8 +451,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'prompt-layer',
       extent: 'parent',
-      position: { x: 392, y: 318 },
-      style: { width: 318 },
+      position: { x: 330, y: 255 },
+      style: { width: 236 },
       data: {
         label: 'Critic / Verifier Agent',
         kicker: 'Falsification Loop',
@@ -464,8 +468,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'prompt-layer',
       extent: 'parent',
-      position: { x: 42, y: 390 },
-      style: { width: 272 },
+      position: { x: 34, y: 280 },
+      style: { width: 236 },
       data: {
         label: 'Self-Correction Scheduler',
         kicker: 'Targeted Re-Search',
@@ -481,8 +485,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'prompt-layer',
       extent: 'parent',
-      position: { x: 112, y: 565 },
-      style: { width: 548 },
+      position: { x: 76, y: 392 },
+      style: { width: 448 },
       data: {
         label: 'Prompt Contract and Volatile Scratchpad',
         kicker: 'Soft Guardrails',
@@ -496,7 +500,7 @@ function buildNodes() {
     {
       id: 'boundary',
       type: 'boundary',
-      position: { x: 1130, y: 292 },
+      position: { x: 920, y: 225 },
       style: { width: 310 },
       data: {
         label: 'SafePathPolicy & MCP JSON-RPC Bridge',
@@ -507,8 +511,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 44, y: 105 },
-      style: { width: 302 },
+      position: { x: 34, y: 96 },
+      style: { width: 270 },
       data: {
         label: 'Read-Only Evidence Root',
         kicker: 'Immutable Case Mount',
@@ -523,8 +527,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 436, y: 105 },
-      style: { width: 344 },
+      position: { x: 340, y: 96 },
+      style: { width: 280 },
       data: {
         label: 'Typed MCP Tool Registry',
         kicker: 'Parser Facade',
@@ -540,8 +544,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 44, y: 300 },
-      style: { width: 238 },
+      position: { x: 34, y: 260 },
+      style: { width: 190 },
       data: {
         label: 'Disk Parsers',
         kicker: 'Prefetch / Amcache / MFT',
@@ -556,8 +560,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 312, y: 300 },
-      style: { width: 238 },
+      position: { x: 240, y: 260 },
+      style: { width: 190 },
       data: {
         label: 'Memory Parsers',
         kicker: 'Volatility / Malfind',
@@ -572,8 +576,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 580, y: 300 },
-      style: { width: 238 },
+      position: { x: 446, y: 260 },
+      style: { width: 174 },
       data: {
         label: 'Log Parsers',
         kicker: 'EVTX / PowerShell',
@@ -588,8 +592,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 44, y: 520 },
-      style: { width: 360 },
+      position: { x: 34, y: 390 },
+      style: { width: 286 },
       data: {
         label: 'Structured Parser Anomaly Capture',
         kicker: 'Defensive Degradation',
@@ -605,8 +609,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'sift-zone',
       extent: 'parent',
-      position: { x: 462, y: 520 },
-      style: { width: 356 },
+      position: { x: 346, y: 390 },
+      style: { width: 274 },
       data: {
         label: 'Blocked Spoliation Probe',
         kicker: 'Administrative Proof',
@@ -622,8 +626,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'proof-zone',
       extent: 'parent',
-      position: { x: 46, y: 100 },
-      style: { width: 326 },
+      position: { x: 42, y: 82 },
+      style: { width: 324 },
       data: {
         label: 'SQLite Evidence Graph',
         kicker: 'Claims and Observations',
@@ -644,8 +648,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'proof-zone',
       extent: 'parent',
-      position: { x: 46, y: 332 },
-      style: { width: 326 },
+      position: { x: 42, y: 250 },
+      style: { width: 324 },
       data: {
         label: 'Claim Confidence Scorer',
         kicker: 'Verify-Falsify Gate',
@@ -661,8 +665,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'proof-zone',
       extent: 'parent',
-      position: { x: 46, y: 535 },
-      style: { width: 326 },
+      position: { x: 42, y: 408 },
+      style: { width: 324 },
       data: {
         label: 'execution_log.jsonl',
         kicker: 'Granular Tool Trace',
@@ -679,8 +683,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'proof-zone',
       extent: 'parent',
-      position: { x: 456, y: 82 },
-      style: { width: 360 },
+      position: { x: 440, y: 70 },
+      style: { width: 366 },
       data: {
         label: 'Clock-Drift Normalizer',
         kicker: 'Temporal Delta',
@@ -696,8 +700,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'proof-zone',
       extent: 'parent',
-      position: { x: 456, y: 292 },
-      style: { width: 360 },
+      position: { x: 440, y: 240 },
+      style: { width: 366 },
       data: {
         label: 'Differential Anti-Forensics Detector',
         kicker: 'Timestomp Signal',
@@ -713,8 +717,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'proof-zone',
       extent: 'parent',
-      position: { x: 456, y: 505 },
-      style: { width: 360 },
+      position: { x: 440, y: 408 },
+      style: { width: 366 },
       data: {
         label: 'MITRE ATT&CK Sequence Validator',
         kicker: 'Behavioral State Machine',
@@ -730,8 +734,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'delivery-zone',
       extent: 'parent',
-      position: { x: 42, y: 100 },
-      style: { width: 280 },
+      position: { x: 34, y: 82 },
+      style: { width: 278 },
       data: {
         label: 'Final Forensic Report',
         kicker: 'Judge-Readable Finding',
@@ -747,8 +751,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'delivery-zone',
       extent: 'parent',
-      position: { x: 376, y: 100 },
-      style: { width: 280 },
+      position: { x: 338, y: 82 },
+      style: { width: 278 },
       data: {
         label: 'Benchmark Harness',
         kicker: 'Ground Truth Scoring',
@@ -768,8 +772,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'delivery-zone',
       extent: 'parent',
-      position: { x: 42, y: 315 },
-      style: { width: 280 },
+      position: { x: 34, y: 250 },
+      style: { width: 278 },
       data: {
         label: 'Accuracy and Spoliation Report',
         kicker: 'Submission Proof',
@@ -785,8 +789,8 @@ function buildNodes() {
       type: 'architecture',
       parentId: 'delivery-zone',
       extent: 'parent',
-      position: { x: 376, y: 315 },
-      style: { width: 280 },
+      position: { x: 338, y: 250 },
+      style: { width: 278 },
       data: {
         label: 'Submission Docs Bundle',
         kicker: 'Devpost-Ready',
@@ -802,8 +806,8 @@ function buildNodes() {
       type: 'capabilityMatrix',
       parentId: 'delivery-zone',
       extent: 'parent',
-      position: { x: 42, y: 522 },
-      style: { width: 614 },
+      position: { x: 34, y: 420 },
+      style: { width: 582 },
       data: {
         label: 'ProofSIFT Capability Matrix',
         kicker: 'Integrated Production Surface',
@@ -815,11 +819,11 @@ function buildNodes() {
 
 function buildEdges() {
   return [
-    makeEdge('user-engine', 'user', 'engine', 'blue', 'CLI command starts loop'),
-    makeEdge('engine-investigator', 'engine', 'investigator', 'blue', 'volatile reasoning flow'),
-    makeEdge('investigator-critic', 'investigator', 'critic', 'blue', 'candidate claim review'),
-    makeEdge('critic-correction', 'critic', 'self-correction', 'amber', 'missing proof becomes next pivot'),
-    makeEdge('correction-engine', 'self-correction', 'engine', 'amber', 'retry with targeted tools', {
+    makeEdge('user-engine', 'user', 'engine', 'blue'),
+    makeEdge('engine-investigator', 'engine', 'investigator', 'blue'),
+    makeEdge('investigator-critic', 'investigator', 'critic', 'blue'),
+    makeEdge('critic-correction', 'critic', 'self-correction', 'amber'),
+    makeEdge('correction-engine', 'self-correction', 'engine', 'amber', undefined, {
       borderRadius: 36,
     }),
     makeEdge('critic-boundary', 'critic', 'boundary', 'red', 'Type-Safe Call (No Shell Access)', {
@@ -827,41 +831,46 @@ function buildEdges() {
       dashed: false,
       animated: false,
       zIndex: 5,
+      labelOffsetY: -42,
     }),
-    makeEdge('boundary-root', 'boundary', 'evidence-root', 'red', 'Path policy validates evidence root', {
+    makeEdge('boundary-root', 'boundary', 'evidence-root', 'red', undefined, {
       strokeWidth: 4.2,
       dashed: false,
       animated: false,
     }),
-    makeEdge('boundary-tools', 'boundary', 'tool-registry', 'red', 'MCP JSON-RPC schema gate', {
+    makeEdge('boundary-tools', 'boundary', 'tool-registry', 'red', 'MCP Schema Gate', {
       strokeWidth: 4.2,
       dashed: false,
       animated: false,
+      labelOffsetY: -36,
     }),
-    makeEdge('root-disk', 'evidence-root', 'disk', 'teal', 'read-only artifact access'),
-    makeEdge('root-memory', 'evidence-root', 'memory', 'teal', 'read-only artifact access'),
-    makeEdge('root-logs', 'evidence-root', 'logs', 'teal', 'read-only artifact access'),
-    makeEdge('tools-disk', 'tool-registry', 'disk', 'teal', 'typed parser call'),
-    makeEdge('tools-memory', 'tool-registry', 'memory', 'teal', 'typed parser call'),
-    makeEdge('tools-logs', 'tool-registry', 'logs', 'teal', 'typed parser call'),
-    makeEdge('disk-graph', 'disk', 'evidence-graph', 'teal', 'Read-Only Output Extraction'),
-    makeEdge('memory-graph', 'memory', 'evidence-graph', 'teal', 'Read-Only Output Extraction'),
-    makeEdge('logs-graph', 'logs', 'evidence-graph', 'teal', 'Read-Only Output Extraction'),
-    makeEdge('parser-signal-graph', 'malformed-signal', 'evidence-graph', 'green', 'malformed input logged as signal'),
-    makeEdge('probe-log', 'spoliation-probe', 'execution-log', 'green', 'blocked write trace'),
-    makeEdge('graph-clock', 'evidence-graph', 'clock-drift', 'indigo', 'anchor event optimization'),
-    makeEdge('graph-anti', 'evidence-graph', 'anti-forensics', 'indigo', 'MFT / USN / Prefetch diff'),
-    makeEdge('graph-mitre', 'evidence-graph', 'mitre', 'indigo', 'claim sequence validation'),
-    makeEdge('clock-confidence', 'clock-drift', 'confidence', 'indigo', 'normalized timeline'),
-    makeEdge('anti-confidence', 'anti-forensics', 'confidence', 'red', 'confidence adjustment'),
-    makeEdge('mitre-confidence', 'mitre', 'confidence', 'amber', 'logical chain gate'),
-    makeEdge('mitre-correction', 'mitre', 'self-correction', 'amber', 'targeted missing-link instruction'),
-    makeEdge('confidence-report', 'confidence', 'final-report', 'violet', 'confirmed claims only'),
-    makeEdge('log-benchmark', 'execution-log', 'benchmark', 'violet', 'trace and token metrics'),
-    makeEdge('confidence-accuracy', 'confidence', 'accuracy-report', 'violet', 'precision / recall / FP accounting'),
-    makeEdge('report-docs', 'final-report', 'submission-docs', 'violet', 'judge package cross-links'),
-    makeEdge('benchmark-docs', 'benchmark', 'submission-docs', 'green', 'reproducible score evidence'),
-    makeEdge('docs-matrix', 'submission-docs', 'capability-matrix', 'violet', 'integrated feature map'),
+    makeEdge('root-disk', 'evidence-root', 'disk', 'teal'),
+    makeEdge('root-memory', 'evidence-root', 'memory', 'teal'),
+    makeEdge('root-logs', 'evidence-root', 'logs', 'teal'),
+    makeEdge('tools-disk', 'tool-registry', 'disk', 'teal'),
+    makeEdge('tools-memory', 'tool-registry', 'memory', 'teal'),
+    makeEdge('tools-logs', 'tool-registry', 'logs', 'teal'),
+    makeEdge('disk-graph', 'disk', 'evidence-graph', 'teal'),
+    makeEdge('memory-graph', 'memory', 'evidence-graph', 'teal', 'Read-Only Output Extraction', {
+      labelOffsetX: -34,
+      labelOffsetY: 32,
+    }),
+    makeEdge('logs-graph', 'logs', 'evidence-graph', 'teal'),
+    makeEdge('parser-signal-graph', 'malformed-signal', 'evidence-graph', 'green'),
+    makeEdge('probe-log', 'spoliation-probe', 'execution-log', 'green'),
+    makeEdge('graph-clock', 'evidence-graph', 'clock-drift', 'indigo'),
+    makeEdge('graph-anti', 'evidence-graph', 'anti-forensics', 'indigo'),
+    makeEdge('graph-mitre', 'evidence-graph', 'mitre', 'indigo'),
+    makeEdge('clock-confidence', 'clock-drift', 'confidence', 'indigo'),
+    makeEdge('anti-confidence', 'anti-forensics', 'confidence', 'red'),
+    makeEdge('mitre-confidence', 'mitre', 'confidence', 'amber'),
+    makeEdge('mitre-correction', 'mitre', 'self-correction', 'amber'),
+    makeEdge('confidence-report', 'confidence', 'final-report', 'violet'),
+    makeEdge('log-benchmark', 'execution-log', 'benchmark', 'violet'),
+    makeEdge('confidence-accuracy', 'confidence', 'accuracy-report', 'violet'),
+    makeEdge('report-docs', 'final-report', 'submission-docs', 'violet'),
+    makeEdge('benchmark-docs', 'benchmark', 'submission-docs', 'green'),
+    makeEdge('docs-matrix', 'submission-docs', 'capability-matrix', 'violet'),
   ];
 }
 
@@ -954,8 +963,8 @@ function DiagramSurface() {
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           fitView
-          fitViewOptions={{ padding: 0.14, minZoom: 0.18, maxZoom: 1.02 }}
-          minZoom={0.16}
+          fitViewOptions={{ padding: 0.08, minZoom: 0.32, maxZoom: 1.05 }}
+          minZoom={0.28}
           maxZoom={1.35}
           nodesDraggable
           nodesConnectable={false}

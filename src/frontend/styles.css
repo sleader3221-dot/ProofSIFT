@@ -39,7 +39,7 @@ button {
 
 .architecture-frame {
   height: calc(100vh - 36px);
-  min-height: 820px;
+  min-height: 780px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 8px;
   background: rgba(9, 9, 11, 0.86);
@@ -49,6 +49,18 @@ button {
 
 .proof-flow .react-flow__node {
   overflow: visible;
+}
+
+.proof-flow .react-flow__edges {
+  z-index: 0;
+}
+
+.proof-flow .react-flow__nodes {
+  z-index: 2;
+}
+
+.proof-flow .react-flow__edge {
+  pointer-events: none;
 }
 
 .proof-flow .react-flow__handle {
@@ -356,6 +368,7 @@ button {
 
 .trust-edge-path {
   pointer-events: visibleStroke;
+  opacity: 0.82;
 }
 
 .trust-edge-path--animated {
@@ -364,20 +377,21 @@ button {
 
 .trust-edge-label {
   position: absolute;
-  max-width: 210px;
-  padding: 7px 9px;
+  max-width: 170px;
+  padding: 6px 8px;
   border: 1px solid var(--edge-tone);
   border-radius: 6px;
   color: #f8fafc;
   background: rgba(2, 6, 23, 0.92);
   box-shadow: 0 0 18px color-mix(in srgb, var(--edge-tone) 38%, transparent);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1.2;
   text-align: center;
-  pointer-events: all;
+  pointer-events: none;
   overflow-wrap: anywhere;
+  opacity: 0.9;
 }
 
 @keyframes proof-dash {
