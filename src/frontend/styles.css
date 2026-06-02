@@ -29,7 +29,7 @@ button {
 .architecture-shell {
   width: 100%;
   min-height: 100vh;
-  padding: 18px;
+  padding: 28px;
   background:
     linear-gradient(rgba(15, 23, 42, 0.22) 1px, transparent 1px),
     linear-gradient(90deg, rgba(15, 23, 42, 0.22) 1px, transparent 1px),
@@ -37,9 +37,193 @@ button {
   background-size: 42px 42px, 42px 42px, auto;
 }
 
-.architecture-frame {
+.architecture-intro {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.75fr);
+  gap: 28px;
+  align-items: end;
+  max-width: 1500px;
+  margin: 0 auto 26px;
+}
+
+.architecture-intro__eyebrow {
+  color: #38bdf8;
+  font-size: 12px;
+  font-weight: 820;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.architecture-intro h1 {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: #f8fafc;
+  font-size: clamp(32px, 5vw, 58px);
+  font-weight: 860;
+  letter-spacing: 0;
+  line-height: 0.98;
+}
+
+.architecture-intro p {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.architecture-experience {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 24px;
+  max-width: 1500px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+.story-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding-bottom: 42vh;
+}
+
+.story-step {
+  min-height: 68vh;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.74);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  padding: 18px;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.story-step--active {
+  border-color: rgba(56, 189, 248, 0.48);
+  background: rgba(15, 23, 42, 0.92);
+  transform: translateY(-2px);
+}
+
+.story-step button {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  width: 100%;
+  align-items: start;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.story-step__number {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  color: #f8fafc;
+  background: rgba(15, 23, 42, 0.84);
+  font-size: 12px;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.story-step__number--blue {
+  border-color: #38bdf8;
+  color: #e0f2fe;
+}
+
+.story-step__number--red {
+  border-color: #ff334e;
+  color: #fff1f2;
+}
+
+.story-step__number--teal {
+  border-color: #2dd4bf;
+  color: #ccfbf1;
+}
+
+.story-step__number--indigo {
+  border-color: #818cf8;
+  color: #e0e7ff;
+}
+
+.story-step__number--violet {
+  border-color: #a78bfa;
+  color: #ede9fe;
+}
+
+.story-step__eyebrow {
+  display: block;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.story-step strong {
+  display: block;
+  margin-top: 5px;
+  color: #f8fafc;
+  font-size: 20px;
+  font-weight: 840;
+  letter-spacing: 0;
+  line-height: 1.08;
+}
+
+.story-step p {
+  margin: 16px 0 0;
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.story-step ul {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.story-step li {
+  position: relative;
+  padding-left: 16px;
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.story-step li::before {
+  position: absolute;
+  top: 0.62em;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #38bdf8;
+  content: "";
+}
+
+.graph-stage {
+  position: sticky;
+  top: 18px;
   height: calc(100vh - 36px);
-  min-height: 780px;
+  min-height: 720px;
+}
+
+.architecture-frame {
+  height: 100%;
+  min-height: 720px;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 8px;
   background: rgba(9, 9, 11, 0.86);
@@ -427,6 +611,60 @@ button {
   color: #94a3b8;
 }
 
+.phase-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #64748b;
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.9);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+  padding: 9px 11px;
+  backdrop-filter: blur(10px);
+}
+
+.phase-badge span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #f8fafc;
+  font-size: 11px;
+  font-weight: 860;
+  line-height: 1;
+}
+
+.phase-badge strong {
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 840;
+  letter-spacing: 0;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.phase-badge--blue {
+  border-color: rgba(56, 189, 248, 0.44);
+}
+
+.phase-badge--red {
+  border-color: rgba(255, 51, 78, 0.58);
+}
+
+.phase-badge--teal {
+  border-color: rgba(45, 212, 191, 0.5);
+}
+
+.phase-badge--indigo {
+  border-color: rgba(129, 140, 248, 0.5);
+}
+
+.phase-badge--violet {
+  border-color: rgba(167, 139, 250, 0.5);
+}
+
 .node-inspector {
   width: 360px;
   padding: 14px;
@@ -565,22 +803,39 @@ button {
   color: #e2e8f0;
 }
 
-.proof-minimap {
-  width: 178px;
-  height: 112px;
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 8px;
-  background: rgba(15, 23, 42, 0.94);
-}
-
 @media (max-width: 900px) {
   .architecture-shell {
     padding: 10px;
   }
 
+  .architecture-intro {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .architecture-experience {
+    grid-template-columns: 1fr;
+  }
+
+  .story-rail {
+    order: 2;
+    padding-bottom: 0;
+  }
+
+  .story-step {
+    min-height: auto;
+  }
+
+  .graph-stage {
+    position: relative;
+    top: 0;
+    height: 78vh;
+    min-height: 620px;
+  }
+
   .architecture-frame {
-    height: calc(100vh - 20px);
-    min-height: 760px;
+    min-height: 620px;
   }
 
   .hero-panel,
