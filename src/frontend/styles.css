@@ -631,36 +631,7 @@ button {
 
 .trust-edge-path {
   pointer-events: visibleStroke;
-  opacity: 0.82;
-}
-
-.trust-edge-path--animated {
-  animation: proof-dash 900ms linear infinite;
-}
-
-.trust-edge-label {
-  position: absolute;
-  max-width: 170px;
-  padding: 6px 8px;
-  border: 1px solid var(--edge-tone);
-  border-radius: 6px;
-  color: #f8fafc;
-  background: rgba(2, 6, 23, 0.92);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--edge-tone) 38%, transparent);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0;
-  line-height: 1.2;
-  text-align: center;
-  pointer-events: none;
-  overflow-wrap: anywhere;
-  opacity: 0.9;
-}
-
-@keyframes proof-dash {
-  to {
-    stroke-dashoffset: -17;
-  }
+  opacity: 0.96;
 }
 
 .hero-panel,

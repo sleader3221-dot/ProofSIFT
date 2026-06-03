@@ -2,7 +2,6 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import {
   Background,
   BaseEdge,
-  EdgeLabelRenderer,
   Handle,
   MarkerType,
   Position,
@@ -270,7 +269,7 @@ function TrustEdge({
   style,
   data,
 }) {
-  const [edgePath, labelX, labelY] = getSmoothStepPath({
+  const [edgePath] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
@@ -279,33 +278,15 @@ function TrustEdge({
     targetPosition,
     borderRadius: data?.borderRadius ?? 24,
   });
-  const tone = toneMap[data?.tone] ?? palette.blue;
 
   return (
-    <>
-      <BaseEdge
-        id={id}
-        path={edgePath}
-        markerEnd={markerEnd}
-        style={style}
-        className={data?.animated ? 'trust-edge-path trust-edge-path--animated' : 'trust-edge-path'}
-      />
-      {data?.label && (
-        <EdgeLabelRenderer>
-          <div
-            className="trust-edge-label"
-            style={{
-              '--edge-tone': tone,
-              transform: `translate(-50%, -50%) translate(${labelX + data.labelOffsetX}px, ${
-                labelY + data.labelOffsetY
-              }px)`,
-            }}
-          >
-            {data.label}
-          </div>
-        </EdgeLabelRenderer>
-      )}
-    </>
+    <BaseEdge
+      id={id}
+      path={edgePath}
+      markerEnd={markerEnd}
+      style={style}
+      className="trust-edge-path"
+    />
   );
 }
 
@@ -329,7 +310,7 @@ function marker(color) {
   };
 }
 
-function makeEdge(id, source, target, tone, label, options = {}) {
+function makeEdge(id, source, target, tone, _label, options = {}) {
   const color = toneMap[tone] ?? palette.blue;
 
   return {
@@ -343,17 +324,13 @@ function makeEdge(id, source, target, tone, label, options = {}) {
     zIndex: options.zIndex ?? 3,
     data: {
       tone,
-      label,
-      animated: options.animated ?? true,
       borderRadius: options.borderRadius,
-      labelOffsetX: options.labelOffsetX ?? 0,
-      labelOffsetY: options.labelOffsetY ?? 0,
     },
     style: {
       stroke: color,
-      strokeWidth: options.strokeWidth ?? 2.8,
-      strokeDasharray: options.dashed === false ? 'none' : options.dash ?? '10 7',
-      filter: `drop-shadow(0 0 6px ${color}88)`,
+      strokeWidth: options.strokeWidth ?? 3.2,
+      strokeDasharray: options.dashed ? options.dash ?? '8 7' : 'none',
+      filter: `drop-shadow(0 0 7px ${color}aa)`,
     },
   };
 }
@@ -742,7 +719,11 @@ const phases = [
     title: 'The only crossing point is SafePathPolicy',
     summary:
       'The red bridge is the audit-critical separation between prompt-generated intent and code-enforced filesystem safety.',
-    proof: ['Type-safe JSON-RPC only', 'No shell executor exposed', 'Evidence-root writes are intercepted structurally'],
+    proof: [
+      'Type-Safe Call (No Shell Access)',
+      'MCP Schema Gate',
+      'Evidence-root writes are intercepted structurally',
+    ],
     nodes: [
       makeZone('prompt-zone', 'prompt', 20, 70, 300, 410),
       makeZone('guardrail-zone', 'guardrail', 585, 70, 390, 410),
@@ -752,24 +733,19 @@ const phases = [
       makeNode('tool-registry', 700, 315, 240),
     ],
     edges: [
-      makeEdge('critic-boundary', 'critic', 'boundary', 'red', 'Type-Safe Call (No Shell Access)', {
+      makeEdge('critic-boundary', 'critic', 'boundary', 'red', undefined, {
         strokeWidth: 5.2,
         dashed: false,
-        animated: false,
-        labelOffsetY: -44,
       }),
       makeEdge('boundary-root', 'boundary', 'evidence-root', 'red', undefined, {
         strokeWidth: 4.2,
         dashed: false,
-        animated: false,
         sourceHandle: 'source-right',
         targetHandle: 'target-left',
       }),
-      makeEdge('boundary-tools', 'boundary', 'tool-registry', 'red', 'MCP Schema Gate', {
+      makeEdge('boundary-tools', 'boundary', 'tool-registry', 'red', undefined, {
         strokeWidth: 4.2,
         dashed: false,
-        animated: false,
-        labelOffsetY: 40,
         sourceHandle: 'source-right',
         targetHandle: 'target-left',
       }),
@@ -783,7 +759,11 @@ const phases = [
     title: 'Forensic tools produce typed observations',
     summary:
       'Disk, memory, and log parsers are isolated behind the MCP facade, with parser failures recorded as forensic signal.',
-    proof: ['Disk, memory, and log parsers are explicit', 'Malformed inputs degrade safely', 'Blocked write probes become audit evidence'],
+    proof: [
+      'Read-Only Output Extraction',
+      'Malformed inputs degrade safely',
+      'Blocked write probes become audit evidence',
+    ],
     nodes: [
       makeZone('guardrail-zone', 'guardrail', 20, 46, 930, 520),
       makeNode('boundary', 44, 230, 270),
@@ -799,12 +779,10 @@ const phases = [
       makeEdge('boundary-root', 'boundary', 'evidence-root', 'red', undefined, {
         strokeWidth: 4,
         dashed: false,
-        animated: false,
       }),
       makeEdge('boundary-tools', 'boundary', 'tool-registry', 'red', undefined, {
         strokeWidth: 4,
         dashed: false,
-        animated: false,
       }),
       makeEdge('root-tools', 'evidence-root', 'tool-registry', 'teal', undefined, {
         sourceHandle: 'source-bottom',
@@ -814,8 +792,7 @@ const phases = [
         sourceHandle: 'source-top',
         targetHandle: 'target-left',
       }),
-      makeEdge('tools-memory', 'tool-registry', 'memory', 'teal', 'Read-Only Output Extraction', {
-        labelOffsetY: 36,
+      makeEdge('tools-memory', 'tool-registry', 'memory', 'teal', undefined, {
         sourceHandle: 'source-right',
         targetHandle: 'target-left',
       }),
