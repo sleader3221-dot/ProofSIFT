@@ -102,7 +102,23 @@ function nodeHandleStyle(accent) {
     background: accent,
     borderColor: palette.slate950,
     boxShadow: `0 0 12px ${accent}99`,
+    opacity: 0,
   };
+}
+
+function renderHandles(accent) {
+  return (
+    <>
+      <Handle id="target-left" type="target" position={Position.Left} style={nodeHandleStyle(accent)} />
+      <Handle id="source-left" type="source" position={Position.Left} style={nodeHandleStyle(accent)} />
+      <Handle id="target-right" type="target" position={Position.Right} style={nodeHandleStyle(accent)} />
+      <Handle id="source-right" type="source" position={Position.Right} style={nodeHandleStyle(accent)} />
+      <Handle id="target-top" type="target" position={Position.Top} style={nodeHandleStyle(accent)} />
+      <Handle id="source-top" type="source" position={Position.Top} style={nodeHandleStyle(accent)} />
+      <Handle id="target-bottom" type="target" position={Position.Bottom} style={nodeHandleStyle(accent)} />
+      <Handle id="source-bottom" type="source" position={Position.Bottom} style={nodeHandleStyle(accent)} />
+    </>
+  );
 }
 
 const ArchitectureNode = memo(function ArchitectureNode({ data, selected }) {
@@ -123,12 +139,7 @@ const ArchitectureNode = memo(function ArchitectureNode({ data, selected }) {
         minHeight: data.minHeight ?? nodeDefaults.minHeight,
       }}
     >
-      {data.handles !== false && (
-        <>
-          <Handle type="target" position={Position.Left} style={nodeHandleStyle(accent)} />
-          <Handle type="source" position={Position.Right} style={nodeHandleStyle(accent)} />
-        </>
-      )}
+      {data.handles !== false && renderHandles(accent)}
 
       <div className="proof-node__header">
         <div className="proof-node__icon" aria-hidden="true">
@@ -175,8 +186,7 @@ const BoundaryNode = memo(function BoundaryNode({ data, selected }) {
         selected ? 'boundary-node--selected' : ''
       }`}
     >
-      <Handle type="target" position={Position.Left} style={nodeHandleStyle(palette.red)} />
-      <Handle type="source" position={Position.Right} style={nodeHandleStyle(palette.red)} />
+      {renderHandles(palette.red)}
 
       <div className="boundary-node__header">
         <div className="boundary-node__icon" aria-hidden="true">
@@ -230,7 +240,7 @@ const CapabilityMatrixNode = memo(function CapabilityMatrixNode({ data, selected
 
   return (
     <div className={`capability-node ${selected ? 'capability-node--selected' : ''}`}>
-      <Handle type="target" position={Position.Left} style={nodeHandleStyle(palette.violet)} />
+      {renderHandles(palette.violet)}
       <div className="capability-node__header">
         <FileCheck2 size={20} />
         <div>
@@ -327,6 +337,8 @@ function makeEdge(id, source, target, tone, label, options = {}) {
     source,
     target,
     type: 'trust',
+    sourceHandle: options.sourceHandle ?? 'source-right',
+    targetHandle: options.targetHandle ?? 'target-left',
     markerEnd: marker(color),
     zIndex: options.zIndex ?? 3,
     data: {
@@ -707,10 +719,18 @@ const phases = [
     edges: [
       makeEdge('user-engine', 'user', 'engine', 'blue'),
       makeEdge('engine-investigator', 'engine', 'investigator', 'blue'),
-      makeEdge('investigator-critic', 'investigator', 'critic', 'blue'),
-      makeEdge('critic-correction', 'critic', 'self-correction', 'amber'),
+      makeEdge('investigator-critic', 'investigator', 'critic', 'blue', undefined, {
+        sourceHandle: 'source-bottom',
+        targetHandle: 'target-top',
+      }),
+      makeEdge('critic-correction', 'critic', 'self-correction', 'amber', undefined, {
+        sourceHandle: 'source-left',
+        targetHandle: 'target-right',
+      }),
       makeEdge('correction-engine', 'self-correction', 'engine', 'amber', undefined, {
         borderRadius: 36,
+        sourceHandle: 'source-top',
+        targetHandle: 'target-bottom',
       }),
     ],
   },
@@ -742,12 +762,16 @@ const phases = [
         strokeWidth: 4.2,
         dashed: false,
         animated: false,
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
       }),
       makeEdge('boundary-tools', 'boundary', 'tool-registry', 'red', 'MCP Schema Gate', {
         strokeWidth: 4.2,
         dashed: false,
         animated: false,
         labelOffsetY: 40,
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
       }),
     ],
   },
@@ -782,16 +806,31 @@ const phases = [
         dashed: false,
         animated: false,
       }),
-      makeEdge('root-disk', 'evidence-root', 'disk', 'teal'),
-      makeEdge('root-memory', 'evidence-root', 'memory', 'teal'),
-      makeEdge('root-logs', 'evidence-root', 'logs', 'teal'),
-      makeEdge('tools-disk', 'tool-registry', 'disk', 'teal'),
+      makeEdge('root-tools', 'evidence-root', 'tool-registry', 'teal', undefined, {
+        sourceHandle: 'source-bottom',
+        targetHandle: 'target-top',
+      }),
+      makeEdge('tools-disk', 'tool-registry', 'disk', 'teal', undefined, {
+        sourceHandle: 'source-top',
+        targetHandle: 'target-left',
+      }),
       makeEdge('tools-memory', 'tool-registry', 'memory', 'teal', 'Read-Only Output Extraction', {
         labelOffsetY: 36,
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
       }),
-      makeEdge('tools-logs', 'tool-registry', 'logs', 'teal'),
-      makeEdge('tools-parser-signal', 'tool-registry', 'malformed-signal', 'green'),
-      makeEdge('root-spoliation', 'evidence-root', 'spoliation-probe', 'green'),
+      makeEdge('tools-logs', 'tool-registry', 'logs', 'teal', undefined, {
+        sourceHandle: 'source-bottom',
+        targetHandle: 'target-left',
+      }),
+      makeEdge('tools-parser-signal', 'tool-registry', 'malformed-signal', 'green', undefined, {
+        sourceHandle: 'source-left',
+        targetHandle: 'target-right',
+      }),
+      makeEdge('tools-spoliation', 'tool-registry', 'spoliation-probe', 'green', undefined, {
+        sourceHandle: 'source-bottom',
+        targetHandle: 'target-top',
+      }),
     ],
   },
   {
@@ -814,14 +853,38 @@ const phases = [
       makeNode('self-correction', 738, 418, 250),
     ],
     edges: [
-      makeEdge('graph-clock', 'evidence-graph', 'clock-drift', 'indigo'),
-      makeEdge('graph-anti', 'evidence-graph', 'anti-forensics', 'indigo'),
-      makeEdge('graph-mitre', 'evidence-graph', 'mitre', 'indigo'),
-      makeEdge('graph-log', 'evidence-graph', 'execution-log', 'violet'),
-      makeEdge('clock-confidence', 'clock-drift', 'confidence', 'indigo'),
-      makeEdge('anti-confidence', 'anti-forensics', 'confidence', 'red'),
-      makeEdge('mitre-confidence', 'mitre', 'confidence', 'amber'),
-      makeEdge('mitre-correction', 'mitre', 'self-correction', 'amber'),
+      makeEdge('graph-clock', 'evidence-graph', 'clock-drift', 'indigo', undefined, {
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
+      }),
+      makeEdge('graph-anti', 'evidence-graph', 'anti-forensics', 'indigo', undefined, {
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
+      }),
+      makeEdge('graph-mitre', 'evidence-graph', 'mitre', 'indigo', undefined, {
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
+      }),
+      makeEdge('graph-log', 'evidence-graph', 'execution-log', 'violet', undefined, {
+        sourceHandle: 'source-bottom',
+        targetHandle: 'target-top',
+      }),
+      makeEdge('clock-confidence', 'clock-drift', 'confidence', 'indigo', undefined, {
+        sourceHandle: 'source-right',
+        targetHandle: 'target-top',
+      }),
+      makeEdge('anti-confidence', 'anti-forensics', 'confidence', 'red', undefined, {
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
+      }),
+      makeEdge('mitre-confidence', 'mitre', 'confidence', 'amber', undefined, {
+        sourceHandle: 'source-right',
+        targetHandle: 'target-bottom',
+      }),
+      makeEdge('mitre-correction', 'mitre', 'self-correction', 'amber', undefined, {
+        sourceHandle: 'source-right',
+        targetHandle: 'target-left',
+      }),
     ],
   },
   {
@@ -845,11 +908,21 @@ const phases = [
     ],
     edges: [
       makeEdge('confidence-report', 'confidence', 'final-report', 'violet'),
-      makeEdge('confidence-accuracy', 'confidence', 'accuracy-report', 'violet'),
+      makeEdge('confidence-accuracy', 'confidence', 'accuracy-report', 'violet', undefined, {
+        sourceHandle: 'source-bottom',
+        targetHandle: 'target-bottom',
+        borderRadius: 40,
+      }),
       makeEdge('log-benchmark', 'execution-log', 'benchmark', 'violet'),
-      makeEdge('report-docs', 'final-report', 'submission-docs', 'violet'),
+      makeEdge('report-docs', 'final-report', 'submission-docs', 'violet', undefined, {
+        sourceHandle: 'source-bottom',
+        targetHandle: 'target-top',
+      }),
       makeEdge('benchmark-docs', 'benchmark', 'submission-docs', 'green'),
-      makeEdge('docs-matrix', 'submission-docs', 'capability-matrix', 'violet'),
+      makeEdge('docs-matrix', 'submission-docs', 'capability-matrix', 'violet', undefined, {
+        sourceHandle: 'source-bottom',
+        targetHandle: 'target-top',
+      }),
     ],
   },
 ];
