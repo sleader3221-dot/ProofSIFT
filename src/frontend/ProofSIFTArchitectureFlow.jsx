@@ -2,11 +2,9 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import {
   Background,
   BaseEdge,
-  Controls,
   EdgeLabelRenderer,
   Handle,
   MarkerType,
-  Panel,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -113,7 +111,9 @@ const ArchitectureNode = memo(function ArchitectureNode({ data, selected }) {
 
   return (
     <div
-      className={`proof-node ${selected ? 'proof-node--selected' : ''}`}
+      className={`proof-node ${data.compact ? 'proof-node--compact' : ''} ${
+        selected ? 'proof-node--selected' : ''
+      }`}
       style={{
         '--node-accent': accent,
         '--node-background':
@@ -140,9 +140,11 @@ const ArchitectureNode = memo(function ArchitectureNode({ data, selected }) {
         </div>
       </div>
 
-      {data.description && <div className="proof-node__description">{data.description}</div>}
+      {data.description && !data.compact && (
+        <div className="proof-node__description">{data.description}</div>
+      )}
 
-      {data.metrics?.length > 0 && (
+      {data.metrics?.length > 0 && !data.compact && (
         <div className="proof-node__metrics">
           {data.metrics.map((metric) => (
             <div className="proof-node__metric" key={`${data.label}-${metric.value}`}>
@@ -153,7 +155,7 @@ const ArchitectureNode = memo(function ArchitectureNode({ data, selected }) {
         </div>
       )}
 
-      {data.badges?.length > 0 && (
+      {data.badges?.length > 0 && (!data.compact || data.showBadges) && (
         <div className="proof-node__badges">
           {data.badges.map((badge) => (
             <span className="proof-node__badge" key={badge}>
@@ -168,7 +170,11 @@ const ArchitectureNode = memo(function ArchitectureNode({ data, selected }) {
 
 const BoundaryNode = memo(function BoundaryNode({ data, selected }) {
   return (
-    <div className={`boundary-node ${selected ? 'boundary-node--selected' : ''}`}>
+    <div
+      className={`boundary-node ${data.compact ? 'boundary-node--compact' : ''} ${
+        selected ? 'boundary-node--selected' : ''
+      }`}
+    >
       <Handle type="target" position={Position.Left} style={nodeHandleStyle(palette.red)} />
       <Handle type="source" position={Position.Right} style={nodeHandleStyle(palette.red)} />
 
@@ -182,12 +188,17 @@ const BoundaryNode = memo(function BoundaryNode({ data, selected }) {
         </div>
       </div>
 
-      <div className="boundary-node__body">
-        Type-safe JSON-RPC calls cross here. The LLM receives no raw shell executor,
-        and writes to registered evidence roots are denied before tools run.
-      </div>
+      {!data.compact && (
+        <>
+          <div className="boundary-node__body">
+            Type-safe JSON-RPC calls cross here. The LLM receives no raw shell executor,
+            and writes to registered evidence roots are denied before tools run.
+          </div>
 
-      <div className="boundary-node__callout">Click to verify zero-spoliation enforcement</div>
+          <div className="boundary-node__callout">Click to verify zero-spoliation enforcement</div>
+        </>
+      )}
+      {data.compact && <div className="boundary-node__callout">Click: zero-spoliation proof</div>}
     </div>
   );
 });
@@ -214,6 +225,9 @@ const GroupFrame = memo(function GroupFrame({ data, selected }) {
 });
 
 const CapabilityMatrixNode = memo(function CapabilityMatrixNode({ data, selected }) {
+  const visibleCapabilities = data.compact ? data.capabilities.slice(0, 10) : data.capabilities;
+  const hiddenCount = data.capabilities.length - visibleCapabilities.length;
+
   return (
     <div className={`capability-node ${selected ? 'capability-node--selected' : ''}`}>
       <Handle type="target" position={Position.Left} style={nodeHandleStyle(palette.violet)} />
@@ -225,9 +239,10 @@ const CapabilityMatrixNode = memo(function CapabilityMatrixNode({ data, selected
         </div>
       </div>
       <div className="capability-node__chips">
-        {data.capabilities.map((capability) => (
+        {visibleCapabilities.map((capability) => (
           <span key={capability}>{capability}</span>
         ))}
+        {hiddenCount > 0 && <span>+{hiddenCount} more</span>}
       </div>
     </div>
   );
@@ -645,13 +660,14 @@ const zoneCatalog = {
 
 function makeNode(id, x, y, width, options = {}) {
   const base = nodeCatalog[id];
+  const compact = options.data?.compact ?? true;
 
   return {
     id,
     type: base.type,
     position: { x, y },
     style: { width, ...(options.style ?? {}) },
-    data: { ...base.data, ...(options.data ?? {}) },
+    data: { ...base.data, compact, ...(options.data ?? {}) },
     zIndex: options.zIndex ?? 2,
   };
 }
@@ -886,6 +902,13 @@ function NodeInspector({ node, phase }) {
           ))}
         </div>
       )}
+      {details.capabilities?.length > 0 && (
+        <div className="node-inspector__chips">
+          {details.capabilities.map((capability) => (
+            <span key={capability}>{capability}</span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1001,6 +1024,13 @@ function DiagramSurface() {
         </nav>
 
         <div className="graph-stage">
+          <div className="graph-toolbar">
+            <div className={`phase-badge phase-badge--${activePhase.tone}`}>
+              <span>{activePhase.number}</span>
+              <strong>{activePhase.eyebrow}</strong>
+            </div>
+            <ViewControls onFit={fitAll} />
+          </div>
           <div className="architecture-frame">
             <ReactFlow
               className="proof-flow"
@@ -1024,33 +1054,21 @@ function DiagramSurface() {
               proOptions={{ hideAttribution: true }}
             >
               <Background color="#334155" gap={24} size={1} />
-              <Controls position="bottom-left" className="proof-controls" />
-              <Panel position="top-left">
-                <div className={`phase-badge phase-badge--${activePhase.tone}`}>
-                  <span>{activePhase.number}</span>
-                  <strong>{activePhase.eyebrow}</strong>
-                </div>
-              </Panel>
-              <Panel position="top-center">
-                <ViewControls onFit={fitAll} />
-              </Panel>
-              <Panel position="bottom-center">
-                <div className="legend-panel">
-                  <span className="legend-panel__item legend-panel__item--blue">Reasoning</span>
-                  <span className="legend-panel__item legend-panel__item--red">Security Gate</span>
-                  <span className="legend-panel__item legend-panel__item--teal">Read-Only Tools</span>
-                  <span className="legend-panel__item legend-panel__item--indigo">Verification</span>
-                  <span className="legend-panel__item legend-panel__item--violet">Deliverables</span>
-                </div>
-              </Panel>
-              <Panel position="top-right">
-                {toastVisible ? (
-                  <GuardrailToast onClose={() => setToastVisible(false)} />
-                ) : (
-                  <NodeInspector node={selectedNode} phase={activePhase} />
-                )}
-              </Panel>
             </ReactFlow>
+          </div>
+          <div className="graph-detail-row">
+            {toastVisible ? (
+              <GuardrailToast onClose={() => setToastVisible(false)} />
+            ) : (
+              <NodeInspector node={selectedNode} phase={activePhase} />
+            )}
+            <div className="legend-panel">
+              <span className="legend-panel__item legend-panel__item--blue">Reasoning</span>
+              <span className="legend-panel__item legend-panel__item--red">Security Gate</span>
+              <span className="legend-panel__item legend-panel__item--teal">Read-Only Tools</span>
+              <span className="legend-panel__item legend-panel__item--indigo">Verification</span>
+              <span className="legend-panel__item legend-panel__item--violet">Deliverables</span>
+            </div>
           </div>
         </div>
       </div>

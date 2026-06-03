@@ -219,11 +219,21 @@ button {
   top: 18px;
   height: calc(100vh - 36px);
   min-height: 720px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 12px;
+}
+
+.graph-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .architecture-frame {
   height: 100%;
-  min-height: 720px;
+  min-height: 0;
   border: 1px solid rgba(148, 163, 184, 0.2);
   border-radius: 8px;
   background: rgba(9, 9, 11, 0.86);
@@ -273,6 +283,12 @@ button {
     0 0 26px color-mix(in srgb, var(--node-accent) 30%, transparent);
 }
 
+.proof-node--compact {
+  gap: 8px;
+  min-height: 84px !important;
+  padding: 12px;
+}
+
 .proof-node--selected {
   border-color: #f8fafc;
   box-shadow:
@@ -287,6 +303,11 @@ button {
   gap: 12px;
 }
 
+.proof-node--compact .proof-node__header {
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+}
+
 .proof-node__icon {
   width: 42px;
   height: 42px;
@@ -297,6 +318,16 @@ button {
   color: var(--node-accent);
   background: color-mix(in srgb, var(--node-accent) 12%, transparent);
   box-shadow: inset 0 0 16px color-mix(in srgb, var(--node-accent) 13%, transparent);
+}
+
+.proof-node--compact .proof-node__icon {
+  width: 34px;
+  height: 34px;
+}
+
+.proof-node--compact .proof-node__icon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .proof-node__copy {
@@ -328,6 +359,15 @@ button {
   line-height: 1.18;
   overflow-wrap: anywhere;
   white-space: normal;
+}
+
+.proof-node--compact .proof-node__title {
+  font-size: 13px;
+  line-height: 1.16;
+}
+
+.proof-node--compact .proof-node__kicker {
+  font-size: 9px;
 }
 
 .proof-node__description,
@@ -409,6 +449,29 @@ button {
     0 0 0 1px rgba(255, 51, 78, 0.38),
     0 0 46px rgba(255, 51, 78, 0.55),
     inset 0 0 28px rgba(255, 51, 78, 0.18);
+}
+
+.boundary-node--compact {
+  min-height: 118px;
+  gap: 10px;
+  padding: 14px;
+}
+
+.boundary-node--compact .boundary-node__callout {
+  margin-top: 0;
+}
+
+.boundary-node--compact .boundary-node__header {
+  grid-template-columns: 40px minmax(0, 1fr);
+}
+
+.boundary-node--compact .boundary-node__icon {
+  width: 40px;
+  height: 40px;
+}
+
+.boundary-node--compact .boundary-node__title {
+  font-size: 14px;
 }
 
 .boundary-node--selected {
@@ -527,6 +590,15 @@ button {
   box-shadow: 0 0 32px rgba(167, 139, 250, 0.22);
 }
 
+.capability-node {
+  min-height: 112px;
+}
+
+.capability-node__title {
+  font-size: 14px;
+  line-height: 1.15;
+}
+
 .capability-node--selected {
   border-color: #f8fafc;
   box-shadow:
@@ -548,6 +620,13 @@ button {
 .capability-node__chips span {
   border-color: rgba(167, 139, 250, 0.42);
   background: rgba(167, 139, 250, 0.13);
+}
+
+.graph-detail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: stretch;
 }
 
 .trust-edge-path {
@@ -666,7 +745,8 @@ button {
 }
 
 .node-inspector {
-  width: 360px;
+  width: 100%;
+  min-height: 118px;
   padding: 14px;
 }
 
@@ -757,7 +837,7 @@ button {
 }
 
 .guardrail-toast {
-  width: 410px;
+  width: 100%;
   border-color: #ff334e;
   background: rgba(69, 10, 10, 0.96);
   box-shadow: 0 0 42px rgba(255, 51, 78, 0.54);
@@ -790,19 +870,6 @@ button {
   padding: 0 12px;
 }
 
-.proof-controls {
-  border: 1px solid rgba(148, 163, 184, 0.24);
-  border-radius: 8px;
-  overflow: hidden;
-  background: rgba(15, 23, 42, 0.92);
-}
-
-.proof-controls button {
-  border-color: rgba(148, 163, 184, 0.2);
-  background: rgba(15, 23, 42, 0.92);
-  color: #e2e8f0;
-}
-
 @media (max-width: 900px) {
   .architecture-shell {
     padding: 10px;
@@ -830,12 +897,23 @@ button {
   .graph-stage {
     position: relative;
     top: 0;
-    height: 78vh;
-    min-height: 620px;
+    height: auto;
+    min-height: 0;
   }
 
   .architecture-frame {
+    height: 68vh;
     min-height: 620px;
+  }
+
+  .graph-toolbar,
+  .graph-detail-row {
+    grid-template-columns: 1fr;
+  }
+
+  .graph-toolbar {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .hero-panel,
