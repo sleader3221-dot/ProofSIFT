@@ -246,11 +246,11 @@ button {
 }
 
 .proof-flow .react-flow__edges {
-  z-index: 0;
+  z-index: 4;
 }
 
 .proof-flow .react-flow__nodes {
-  z-index: 2;
+  z-index: 3;
 }
 
 .proof-flow .react-flow__edge {
@@ -534,7 +534,9 @@ button {
   padding: 16px;
   border: 2px var(--group-border-style) var(--group-accent);
   border-radius: 8px;
-  background: var(--group-background);
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.2), rgba(2, 6, 23, 0.08)),
+    var(--group-background);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.02),
     0 0 38px color-mix(in srgb, var(--group-accent) 18%, transparent);
@@ -631,7 +633,19 @@ button {
 
 .trust-edge-path {
   pointer-events: visibleStroke;
-  opacity: 0.96;
+  opacity: 1;
+}
+
+.trust-edge-path--dynamic {
+  animation: proof-flow-dash 950ms linear infinite;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@keyframes proof-flow-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
 }
 
 .hero-panel,

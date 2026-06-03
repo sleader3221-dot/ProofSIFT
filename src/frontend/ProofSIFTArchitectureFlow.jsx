@@ -285,7 +285,7 @@ function TrustEdge({
       path={edgePath}
       markerEnd={markerEnd}
       style={style}
-      className="trust-edge-path"
+      className="trust-edge-path trust-edge-path--dynamic"
     />
   );
 }
@@ -328,9 +328,9 @@ function makeEdge(id, source, target, tone, _label, options = {}) {
     },
     style: {
       stroke: color,
-      strokeWidth: options.strokeWidth ?? 3.2,
-      strokeDasharray: options.dashed ? options.dash ?? '8 7' : 'none',
-      filter: `drop-shadow(0 0 7px ${color}aa)`,
+      strokeWidth: options.strokeWidth ?? 3.4,
+      strokeDasharray: options.dash ?? '14 10',
+      filter: `drop-shadow(0 0 9px ${color}cc)`,
     },
   };
 }
