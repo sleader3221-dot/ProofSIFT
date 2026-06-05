@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Background,
   BaseEdge,
@@ -685,13 +685,13 @@ const phases = [
       'ProofSIFT lets the LLM plan and critique, but keeps those thoughts volatile until typed tools produce durable evidence.',
     proof: ['Prompt layer is visually dashed amber', 'Self-correction is explicit', 'No raw shell or evidence write path exists here'],
     nodes: [
-      makeZone('prompt-zone', 'prompt', 20, 46, 780, 500),
-      makeNode('user', 36, 245, 220),
-      makeNode('engine', 292, 124, 230),
-      makeNode('investigator', 552, 98, 220),
-      makeNode('critic', 552, 276, 220),
-      makeNode('self-correction', 292, 304, 230),
-      makeNode('prompt-contract', 292, 430, 480),
+      makeZone('prompt-zone', 'prompt', 20, 46, 860, 560),
+      makeNode('user', 36, 280, 220),
+      makeNode('engine', 300, 140, 240),
+      makeNode('investigator', 600, 100, 230),
+      makeNode('critic', 600, 310, 230),
+      makeNode('self-correction', 300, 350, 240),
+      makeNode('prompt-contract', 300, 480, 520),
     ],
     edges: [
       makeEdge('user-engine', 'user', 'engine', 'blue'),
@@ -725,12 +725,12 @@ const phases = [
       'Evidence-root writes are intercepted structurally',
     ],
     nodes: [
-      makeZone('prompt-zone', 'prompt', 20, 70, 300, 410),
-      makeZone('guardrail-zone', 'guardrail', 585, 70, 390, 410),
-      makeNode('critic', 72, 220, 218),
-      makeNode('boundary', 360, 212, 300),
-      makeNode('evidence-root', 700, 135, 240),
-      makeNode('tool-registry', 700, 315, 240),
+      makeZone('prompt-zone', 'prompt', 20, 70, 340, 460),
+      makeZone('guardrail-zone', 'guardrail', 620, 70, 440, 460),
+      makeNode('critic', 60, 240, 260),
+      makeNode('boundary', 380, 230, 340),
+      makeNode('evidence-root', 800, 140, 240),
+      makeNode('tool-registry', 800, 340, 240),
     ],
     edges: [
       makeEdge('critic-boundary', 'critic', 'boundary', 'red', undefined, {
@@ -765,15 +765,15 @@ const phases = [
       'Blocked write probes become audit evidence',
     ],
     nodes: [
-      makeZone('guardrail-zone', 'guardrail', 20, 46, 930, 520),
-      makeNode('boundary', 44, 230, 270),
-      makeNode('evidence-root', 342, 94, 230),
-      makeNode('tool-registry', 342, 316, 230),
-      makeNode('disk', 628, 70, 210),
-      makeNode('memory', 628, 238, 210),
-      makeNode('logs', 628, 406, 210),
-      makeNode('malformed-signal', 60, 430, 250),
-      makeNode('spoliation-probe', 342, 460, 230),
+      makeZone('guardrail-zone', 'guardrail', 20, 46, 980, 560),
+      makeNode('boundary', 44, 240, 270),
+      makeNode('evidence-root', 370, 100, 250),
+      makeNode('tool-registry', 370, 330, 250),
+      makeNode('disk', 690, 70, 240),
+      makeNode('memory', 690, 250, 240),
+      makeNode('logs', 690, 430, 240),
+      makeNode('malformed-signal', 60, 460, 270),
+      makeNode('spoliation-probe', 370, 480, 250),
     ],
     edges: [
       makeEdge('boundary-root', 'boundary', 'evidence-root', 'red', undefined, {
@@ -820,14 +820,14 @@ const phases = [
       'The graph feeds strict validators for clock drift, timestomping, MITRE progression, and confidence scoring.',
     proof: ['Clock drift uses anchor events', 'Timestomp anomalies adjust confidence', 'MITRE gaps force targeted self-correction'],
     nodes: [
-      makeZone('proof-zone', 'proof', 20, 46, 930, 520),
-      makeNode('evidence-graph', 58, 112, 280),
-      makeNode('execution-log', 58, 350, 280),
-      makeNode('clock-drift', 390, 70, 300),
-      makeNode('anti-forensics', 390, 238, 300),
-      makeNode('mitre', 390, 406, 300),
-      makeNode('confidence', 738, 238, 250),
-      makeNode('self-correction', 738, 418, 250),
+      makeZone('proof-zone', 'proof', 20, 46, 1000, 560),
+      makeNode('evidence-graph', 50, 120, 300),
+      makeNode('execution-log', 50, 380, 300),
+      makeNode('clock-drift', 430, 70, 320),
+      makeNode('anti-forensics', 430, 270, 320),
+      makeNode('mitre', 430, 470, 320),
+      makeNode('confidence', 800, 260, 260),
+      makeNode('self-correction', 800, 460, 260),
     ],
     edges: [
       makeEdge('graph-clock', 'evidence-graph', 'clock-drift', 'indigo', undefined, {
@@ -874,14 +874,14 @@ const phases = [
       'Final reports, benchmark scores, spoliation results, and docs are tied back to the evidence graph and execution log.',
     proof: ['Precision and recall are surfaced', 'Submission bundle is explicit', 'Capability matrix shows integrated coverage'],
     nodes: [
-      makeZone('delivery-zone', 'delivery', 20, 46, 930, 560),
+      makeZone('delivery-zone', 'delivery', 20, 46, 1000, 600),
       makeNode('confidence', 52, 122, 236),
-      makeNode('execution-log', 52, 330, 236),
-      makeNode('final-report', 342, 80, 248),
-      makeNode('benchmark', 342, 268, 248),
-      makeNode('accuracy-report', 642, 80, 248),
-      makeNode('submission-docs', 642, 268, 248),
-      makeNode('capability-matrix', 272, 456, 618),
+      makeNode('execution-log', 52, 350, 236),
+      makeNode('final-report', 370, 80, 270),
+      makeNode('benchmark', 370, 290, 270),
+      makeNode('accuracy-report', 690, 80, 270),
+      makeNode('submission-docs', 690, 290, 270),
+      makeNode('capability-matrix', 272, 500, 700),
     ],
     edges: [
       makeEdge('confidence-report', 'confidence', 'final-report', 'violet'),
@@ -969,7 +969,7 @@ function ViewControls({ onFit }) {
       <button type="button" onClick={onFit}>
         Fit Phase
       </button>
-      <span>Scroll the phases or click a step to focus the architecture.</span>
+      <span>Click a phase card to focus the architecture.</span>
     </div>
   );
 }
@@ -981,7 +981,6 @@ function DiagramSurface() {
   const edges = useMemo(() => activePhase.edges, [activePhase]);
   const [toastVisible, setToastVisible] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
-  const stepRefs = useRef([]);
   const flow = useReactFlow();
 
   const handleNodeClick = useCallback((_, node) => {
@@ -1005,31 +1004,6 @@ function DiagramSurface() {
     return () => window.cancelAnimationFrame(id);
   }, [activePhaseIndex, flow]);
 
-  useEffect(() => {
-    if (typeof IntersectionObserver === 'undefined') {
-      return undefined;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((left, right) => right.intersectionRatio - left.intersectionRatio)[0];
-
-        if (visible?.target?.dataset.phaseIndex) {
-          setActivePhaseIndex(Number(visible.target.dataset.phaseIndex));
-        }
-      },
-      { root: null, rootMargin: '-22% 0px -42% 0px', threshold: [0.35, 0.55, 0.75] },
-    );
-
-    stepRefs.current.forEach((step) => {
-      if (step) observer.observe(step);
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
   return (
     <section className="architecture-shell">
       <header className="architecture-intro">
@@ -1048,13 +1022,13 @@ function DiagramSurface() {
           {phases.map((phase, index) => (
             <article
               className={`story-step ${activePhaseIndex === index ? 'story-step--active' : ''}`}
-              data-phase-index={index}
               key={phase.id}
-              ref={(element) => {
-                stepRefs.current[index] = element;
-              }}
+              role="button"
+              tabIndex={0}
+              onClick={() => setActivePhaseIndex(index)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActivePhaseIndex(index); } }}
             >
-              <button type="button" onClick={() => setActivePhaseIndex(index)}>
+              <div className="story-step__header">
                 <span className={`story-step__number story-step__number--${phase.tone}`}>
                   {phase.number}
                 </span>
@@ -1062,9 +1036,9 @@ function DiagramSurface() {
                   <span className="story-step__eyebrow">{phase.eyebrow}</span>
                   <strong>{phase.title}</strong>
                 </span>
-              </button>
-              <p>{phase.summary}</p>
-              <ul>
+              </div>
+              <p className="story-step__summary">{phase.summary}</p>
+              <ul className="story-step__proof">
                 {phase.proof.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
