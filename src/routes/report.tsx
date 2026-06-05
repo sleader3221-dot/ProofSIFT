@@ -48,7 +48,7 @@ unknown.exe -> 198.51.100.24 remains INFERRED - HIGH because no matching disk ex
 ## 4. Anti-Forensics and Clock Drift
 
 - EVTX vs memory_netscan: +120s raw clock skew normalized against the Netscan anchor.
-- evil.exe MFT STANDARD_INFORMATION created timestamp (14:10:05Z) appears after modified timestamp (14:02:05Z), so timestomping was flagged with a 1.12x confidence multiplier.
+- evil.exe MFT STANDARD_INFORMATION created timestamp (14:10:05Z) appears after modified timestamp (14:02:05Z), so timestomping is folded into Bayesian posterior scoring as an anti-forensics signal.
 
 ## 5. Integrity and Spoliation
 
@@ -282,7 +282,7 @@ function ReportPage() {
               evil.exe MFT $STANDARD_INFORMATION: created{" "}
               <span className="text-inferred">14:10:05Z</span>, modified{" "}
               <span className="text-inferred">14:02:05Z</span> — timestomping flagged with{" "}
-              <span className="text-inferred">×1.12</span> confidence multiplier.
+              <span className="text-inferred">Bayesian</span> anti-forensics signal.
             </li>
           </ul>
 

@@ -14,10 +14,13 @@
 | **Precision** | 1.0 |
 | **Recall** | 1.0 |
 | **Confirmed Claims** | 2 |
-| **Self-Corrections** | 14 |
+| **Self-Corrections** | 23 |
 | **Clock Drifts Detected** | 1 |
 | **Anti-Forensics Anomalies Found** | 2 |
 | **MITRE Sequence Recommendations** | 2 |
+| **Counterfactual Alibi Checks** | 8 |
+| **Bayesian Posterior Scores** | 15 |
+| **Merkle-DAG Integrity** | PASSED |
 | **Execution Runtime** | ~0.15 seconds |
 
 ---
@@ -34,6 +37,9 @@
    Hallucinated Items Intercepted : 0     (Enforced via Critic)
    Anti-Forensics Anomalies Found : 2 / 2  (100.0%)
   Clock-Drift Adjustments Applied: 1 / 1  (120s Normalized)
+   Counterfactual Alibi Checks    : 8 (4 denied escalations)
+   Bayesian Posterior Scores      : 15 computed
+   Merkle-DAG Integrity Seal      : sha256:<root>
    Evidence Spoliation Attempts   : 0 Writes Allowed (2 Blocked by Policy)
  SYSTEM METRICS:
    Total Execution Runtime        : 0.15 seconds
@@ -118,14 +124,48 @@ These gaps prompted the agent to deploy disk investigation tools in Iteration 2,
 
 ---
 
+### Counterfactual Falsification
+
+ProofSIFT runs active missing-evidence checks before escalation. For a C2 claim, the critic expects execution-cache and filesystem side effects such as Shimcache, Amcache, Prefetch, Event ID 4688, MFT, or USN records.
+
+The weak `unknown.exe` network-only claim produces:
+
+```text
+[COUNTERFACTUAL FAILURE] Denied escalation - Expected execution artifact in Shimcache/AppCompatCache entry, Amcache program inventory, Prefetch execution cache, Security.evtx Event ID 4688 missing.
+```
+
+This keeps the claim inferred even though the IP is suspicious.
+
+### Bayesian Forensic Calculus
+
+Confidence scores are recalculated from a reproducible probability matrix:
+
+```text
+P(H|E) = P(E|H) * P(H) / P(E)
+```
+
+Isolated network evidence remains low-confidence. Multi-source evidence such as netscan plus Prefetch, Amcache, MFT, Event ID 4688, and anti-forensics anomalies converges toward a confirmed critical posterior.
+
+### Merkle-DAG Integrity Seal
+
+The evidence graph can be independently verified:
+
+```bash
+proofsift verify-integrity --graph cases/demo_case/outputs/evidence_graph.sqlite
+```
+
+The command returns one `sha256:<root>` seal over tool runs, artifact content hashes, observations, claims, signed claim-evidence relationship blocks, corrections, Bayesian scores, and counterfactual checks.
+
+---
+
 ## Self-Correction Summary
 
-The agent recorded **14 self-correction events** across 3 iterations:
+The agent recorded **23 self-correction events** across 3 iterations:
 
 | Iteration | Corrections | Description |
 |-----------|-------------|-------------|
-| 1 | 4 | 2 C2 claims downgraded to INFERRED (pending disk); 2 MITRE sequence gaps detected |
-| 2 | 9 | 1 claim upgraded to CONFIRMED; 6 anti-forensics confidence adjustments; 1 clock drift normalization; 1 additional adjustment |
+| 1 | 8 | 2 C2 claims downgraded to INFERRED, 2 MITRE sequence gaps detected, 2 counterfactual failures logged, and Bayesian posterior recalculations recorded |
+| 2 | 14 | 1 claim upgraded to CONFIRMED, anti-forensics context added, clock drift normalized, counterfactual checks rerun, and Bayesian posterior recalculations recorded |
 | 3 | 1 | Confidence adjustment carried forward |
 
 ---

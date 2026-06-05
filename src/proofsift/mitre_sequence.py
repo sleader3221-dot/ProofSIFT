@@ -133,6 +133,7 @@ class MitreSequenceValidator:
             paths.extend([
                 "C:\\Windows\\Prefetch\\*.pf",
                 "Amcache.hve program entries",
+                "Shimcache/AppCompatCache entries",
                 "Security.evtx Event ID 4688",
                 "memory process listings for hidden or terminated processes",
             ])
@@ -147,7 +148,9 @@ class MitreSequenceValidator:
             gap_type=f"missing_preceding_behavior_for_{tactic.lower().replace(' ', '_')}",
             reason=(
                 f"{tactic} claim `{claim.claim_id}` exists without preceding "
-                f"{', '.join(missing)} evidence in the current ATT&CK sequence."
+                f"{', '.join(missing)} evidence in the current ATT&CK sequence. "
+                "[COUNTERFACTUAL FAILURE] Denied escalation - Expected execution artifact "
+                "in Shimcache, Amcache, Prefetch, or Security Event ID 4688 missing."
             ),
             target_claim_id=claim.claim_id,
             required_tactics=missing,

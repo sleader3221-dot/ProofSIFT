@@ -7,6 +7,7 @@ from pathlib import Path
 from .agent import SelfCorrectingInvestigator, load_case_config
 from .benchmark import run_benchmark
 from .graph import EvidenceGraph
+from .integrity import calculate_integrity_seal
 from .mcp_server import serve_stdio
 from .tools import ToolRunner
 from . import terminal as t
@@ -31,6 +32,9 @@ def main(argv: list[str] | None = None) -> int:
     trace_p.add_argument("--graph", required=True, type=Path)
     trace_p.add_argument("--claim-id", required=True)
 
+    integrity_p = sub.add_parser("verify-integrity", help="Verify the Merkle-DAG evidence graph root seal")
+    integrity_p.add_argument("--graph", required=True, type=Path)
+
     tools_p = sub.add_parser("list-tools", help="List typed tools exposed by ProofSIFT")
     tools_p.add_argument("--case", type=Path)
 
@@ -54,6 +58,12 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(graph.trace_claim(args.claim_id), indent=2, sort_keys=True))
         graph.close()
         return 0
+    if args.command == "verify-integrity":
+        graph = EvidenceGraph(args.graph)
+        seal = calculate_integrity_seal(graph)
+        print(json.dumps(seal, indent=2, sort_keys=True))
+        graph.close()
+        return 0 if seal["ok"] else 4
     if args.command == "list-tools":
         if args.case:
             config = load_case_config(args.case)

@@ -16,6 +16,9 @@ proofsift run --case cases/demo_case/case.json --max-iterations 3
 # Run benchmark against ground truth
 proofsift benchmark --case cases/demo_case/case.json --ground-truth cases/demo_case/ground_truth.json --max-iterations 3
 
+# Verify cryptographic evidence graph integrity
+proofsift verify-integrity --graph cases/demo_case/outputs/evidence_graph.sqlite
+
 # Run tests
 python -m unittest discover -s tests -v
 ```
@@ -41,8 +44,10 @@ The agent displays real-time reasoning during execution:
   -> Missing: Execution artifacts.
 [TOOL] disk_prefetch: Prefetch execution artifacts parsed
 [CLOCK DRIFT] evtx normalized against netscan with 120s offset
+[COUNTERFACTUAL FAILURE] Denied escalation - Expected execution artifact in Shimcache/AppCompatCache entry missing
 [CLAIM ESCALATION] upgraded from [INFERRED] to [CONFIRMED - CRITICAL]
-[CRITIC REVIEW] Anomaly: mft_creation_postdates_prefetch_execution (1.12x multiplier)
+[CRITIC REVIEW] Anomaly: mft_creation_postdates_prefetch_execution -> Bayesian posterior scoring
+[INTEGRITY] Merkle-DAG root seal: sha256:<root>
 ```
 
 ## Benchmark Output
@@ -57,6 +62,9 @@ The agent displays real-time reasoning during execution:
    Hallucinated Items Intercepted : 0     (Enforced via Critic)
    Anti-Forensics Anomalies Found : 2 / 2  (100.0%)
   Clock-Drift Adjustments Applied: 1 / 1  (120s Normalized)
+   Counterfactual Alibi Checks    : 8 (4 denied escalations)
+   Bayesian Posterior Scores      : 15 computed
+   Merkle-DAG Integrity Seal      : sha256:<root>
    Evidence Spoliation Attempts   : 0 Writes Allowed (2 Blocked by Policy)
  SYSTEM METRICS:
    Total Execution Runtime        : 0.15 seconds
@@ -95,7 +103,7 @@ Expected behavior:
 | `autoruns.csv` | Updater -> evil.exe in HKCU\Run | Registry persistence |
 | `payload_notes.txt` | "evil beacon initialized", "c2 channel: 203.0.113.50:443" | Keyword/YARA IOC match |
 
-## 75 Advanced Features
+## 90 Advanced Features
 
 | # | Feature | Category |
 |---|---------|----------|
@@ -109,10 +117,13 @@ Expected behavior:
 | 37-39 | Markdown report, strict-review report_2, HTML report | Reporting |
 | 40 | Stdio JSON-RPC bridge for Protocol SIFT | MCP Bridge |
 | 41-50 | Observations table, automatic extraction, drift anchors, network-EVTX matching, delta calculation, normalized updates, indexed queries, audit events, correction traces, report section | Clock Drift |
-| 51-58 | MFT-Prefetch timestomping, MFT-USN timestomping, created-after-modified, anomaly table, confidence multipliers, audit events, claim adjustment, report section | Anti-Forensics |
+| 51-58 | MFT-Prefetch timestomping, MFT-USN timestomping, created-after-modified, anomaly table, Bayesian anomaly signals, audit events, claim adjustment, report section | Anti-Forensics |
 | 59-68 | Tactic mapping, behavioral state machine, C2 validation, Credential Access validation, Execution prerequisite detection, tool recommendations, path recommendations, audit events, correction traces, report section | MITRE ATT&CK |
 | 69-71 | Parser anomaly artifacts, graceful degradation, error capture without modification | Parser Resilience |
 | 72-75 | Expanded benchmark scoring, advanced verification tests, clock drift fixture, anti-forensics fixture | Testing |
+| 76-80 | Artifact content hashes, signed claim-evidence relationship blocks, Merkle-DAG node hashing, root seal generation, integrity verification CLI | Cryptographic Chain of Custody |
+| 81-85 | Counterfactual alibi checks, denied-escalation logs, missing Shimcache/Amcache/Event 4688 tests, confirmed-claim downgrade gate, SQLite counterfactual audit table | Active Falsification |
+| 86-90 | Bayesian prior model, likelihood matrix, posterior confidence formula, score persistence, benchmark/report integration | Mathematical Confidence |
 
 ## Repository Layout
 
@@ -140,6 +151,8 @@ cases/demo_case/            Runnable demo evidence and ground truth
 tests/                      Unit tests (9 tests)
 setup_sift.sh               One-command installer for SIFT Workstation
 ```
+
+Additional advanced modules: `bayesian.py`, `counterfactual.py`, and `integrity.py` add posterior confidence calculus, active missing-evidence falsification, and Merkle-DAG graph verification.
 
 ## Setup Script (SIFT Workstation)
 
@@ -174,6 +187,14 @@ See [docs/vercel_deployment.md](docs/vercel_deployment.md).
 ```bash
 proofsift trace --graph cases/demo_case/outputs/evidence_graph.sqlite --claim-id <claim-id>
 ```
+
+## Verify Graph Integrity
+
+```bash
+proofsift verify-integrity --graph cases/demo_case/outputs/evidence_graph.sqlite
+```
+
+Returns a single `sha256:<root>` Merkle-DAG seal over tool runs, artifacts, observations, claims, signed claim-evidence relationship blocks, corrections, Bayesian scores, and counterfactual checks.
 
 ## Validate Submission
 

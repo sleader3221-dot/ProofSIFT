@@ -4,6 +4,8 @@ import unittest
 from pathlib import Path
 
 from proofsift.agent import SelfCorrectingInvestigator, load_case_config
+from proofsift.graph import EvidenceGraph
+from proofsift.integrity import calculate_integrity_seal
 
 
 class AdvancedVerificationTest(unittest.TestCase):
@@ -73,6 +75,34 @@ class AdvancedVerificationTest(unittest.TestCase):
         self.assertIn('"actor": "clock_drift"', log)
         self.assertIn('"actor": "anti_forensics"', log)
         self.assertIn('"actor": "mitre_sequence"', log)
+
+    def test_merkle_dag_integrity_root_is_verifiable(self):
+        graph = EvidenceGraph(self.output / "evidence_graph.sqlite")
+        try:
+            seal = calculate_integrity_seal(graph)
+        finally:
+            graph.close()
+        self.assertTrue(seal["ok"])
+        self.assertTrue(seal["root_seal"].startswith("sha256:"))
+        self.assertGreaterEqual(seal["relationship_block_count"], 1)
+        self.assertEqual(seal["artifact_hash_mismatches"], [])
+
+    def test_bayesian_scores_are_recorded_for_claims(self):
+        rows = self.conn.execute("select * from bayesian_scores").fetchall()
+        self.assertGreaterEqual(len(rows), 1)
+        posteriors = [row["posterior"] for row in rows]
+        self.assertTrue(all(0.0 <= posterior <= 0.9999 for posterior in posteriors))
+        signals = "\n".join(row["signals_json"] for row in rows)
+        self.assertIn("network", signals)
+        self.assertIn("prefetch", signals)
+
+    def test_counterfactual_failures_are_logged_as_denied_escalations(self):
+        rows = self.conn.execute("select * from counterfactual_checks where status = 'FAIL'").fetchall()
+        self.assertGreaterEqual(len(rows), 1)
+        missing = "\n".join(row["missing_artifacts_json"] for row in rows)
+        self.assertIn("Shimcache/AppCompatCache entry", missing)
+        log = (self.output / "execution_log.jsonl").read_text(encoding="utf-8")
+        self.assertIn("[COUNTERFACTUAL FAILURE] Denied escalation", log)
 
 
 if __name__ == "__main__":

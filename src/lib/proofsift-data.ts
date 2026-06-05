@@ -8,11 +8,14 @@
 export const metrics = {
   ingestedArtifacts: 1429,
   generatedClaims: 6,
-  selfCorrections: 14,
+  selfCorrections: 23,
   clockDrifts: 1,
   clockDriftOffset: "120s",
   antiForensics: 2,
   spoliationBlocked: 2,
+  counterfactualChecks: 8,
+  bayesianScores: 15,
+  merkleRoot: "sha256:<verified-root>",
 };
 
 export type ClaimStatus = "CONFIRMED - CRITICAL" | "INFERRED - HIGH" | "CONTEXT" | "REJECTED";
@@ -85,7 +88,7 @@ export const claims: Claim[] = [
     mitre: ["T1070.006"],
     evidence: [
       { source: "timeline_mft", detail: "MFT $STANDARD_INFORMATION created-after-modified" },
-      { source: "anomaly_engine", detail: "1.12x confidence multiplier applied" },
+      { source: "anomaly_engine", detail: "Bayesian anti-forensics signal applied" },
     ],
   },
   {
@@ -721,7 +724,7 @@ export const terminalScript: { text: string; tone?: "ok" | "warn" | "err" | "inf
 export const benchmark = {
   truePositives: { value: 2, total: 2, pct: 100 },
   falsePositives: { value: 0, total: 0, pct: 0 },
-  hallucinationsIntercepted: 14,
+  hallucinationsIntercepted: 0,
   antiForensicsFound: { value: 2, total: 2, pct: 100 },
   clockDrifts: { value: 1, total: 1, label: "120s Normalized" },
   spoliationBlocked: { allowed: 0, blocked: 2 },

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from .graph import EvidenceGraph
+from .integrity import calculate_integrity_seal
 from .models import CaseConfig
 
 
@@ -20,15 +21,40 @@ def write_reports(config: CaseConfig, graph: EvidenceGraph, output_dir: Path) ->
     clock_drifts = [dict(row) for row in graph.clock_drifts()]
     anomalies = [dict(row) for row in graph.anomalies()]
     sequence_recommendations = [dict(row) for row in graph.sequence_recommendations()]
+    bayesian_scores = [dict(row) for row in graph.bayesian_scores()]
+    counterfactual_checks = [dict(row) for row in graph.counterfactual_checks()]
+    integrity_seal = calculate_integrity_seal(graph)
     traces: dict[str, Any] = {}
     for claim in claims:
         traces[claim["claim_id"]] = graph.trace_claim(claim["claim_id"])
     trace_index.write_text(json.dumps(traces, indent=2, sort_keys=True), encoding="utf-8")
-    markdown_text = _markdown(config, claims, corrections, traces, clock_drifts, anomalies, sequence_recommendations)
+    markdown_text = _markdown(
+        config,
+        claims,
+        corrections,
+        traces,
+        clock_drifts,
+        anomalies,
+        sequence_recommendations,
+        bayesian_scores,
+        counterfactual_checks,
+        integrity_seal,
+    )
     markdown.write_text(markdown_text, encoding="utf-8")
     markdown_2.write_text(markdown_text, encoding="utf-8")
     html_path.write_text(
-        _html(config, claims, corrections, traces, clock_drifts, anomalies, sequence_recommendations),
+        _html(
+            config,
+            claims,
+            corrections,
+            traces,
+            clock_drifts,
+            anomalies,
+            sequence_recommendations,
+            bayesian_scores,
+            counterfactual_checks,
+            integrity_seal,
+        ),
         encoding="utf-8",
     )
     if not accuracy_stub.exists():
@@ -41,6 +67,7 @@ def write_reports(config: CaseConfig, graph: EvidenceGraph, output_dir: Path) ->
         "trace_index": str(trace_index),
         "evidence_graph": str(output_dir / "evidence_graph.sqlite"),
         "execution_log": str(output_dir / "execution_log.jsonl"),
+        "integrity_root_seal": integrity_seal["root_seal"],
     }
 
 
@@ -52,6 +79,9 @@ def _markdown(
     clock_drifts: list[dict[str, Any]],
     anomalies: list[dict[str, Any]],
     sequence_recommendations: list[dict[str, Any]],
+    bayesian_scores: list[dict[str, Any]],
+    counterfactual_checks: list[dict[str, Any]],
+    integrity_seal: dict[str, Any],
 ) -> str:
     lines = [
         f"# ProofSIFT Investigation Report: {config.name}",
@@ -65,6 +95,8 @@ def _markdown(
         f"- Clock drift adjustments: `{len(clock_drifts)}`",
         f"- Anti-forensics anomalies: `{len(anomalies)}`",
         f"- MITRE sequence recommendations: `{len(sequence_recommendations)}`",
+        f"- Counterfactual checks: `{len(counterfactual_checks)}`",
+        f"- Merkle-DAG root seal: `{integrity_seal['root_seal']}`",
         "",
         "## Findings",
         "",
@@ -128,15 +160,41 @@ def _markdown(
             f"- `{recommendation['gap_type']}` for claim `{recommendation['target_claim_id']}`: "
             f"{recommendation['reason']} Tools: `{tools}`. Paths: {paths}"
         )
+    lines.extend(["", "## Counterfactual Falsification", ""])
+    if not counterfactual_checks:
+        lines.append("No counterfactual alibi checks were required.")
+    for check in counterfactual_checks:
+        missing = ", ".join(json.loads(check["missing_artifacts_json"]))
+        present = ", ".join(json.loads(check["present_artifacts_json"]))
+        lines.append(
+            f"- `{check['status']}` `{check['hypothesis']}` for claim `{check['claim_id']}`. "
+            f"Present: {present or 'none'}. Missing: {missing or 'none'}. Action: `{check['action']}`."
+        )
+    lines.extend(["", "## Bayesian Forensic Calculus", ""])
+    lines.append("Formula: `P(H|E) = P(E|H) * P(H) / P(E)`.")
+    latest_scores = _latest_bayesian_scores(bayesian_scores)
+    if not latest_scores:
+        lines.append("No Bayesian scores were recorded.")
+    for score in latest_scores:
+        lines.append(
+            f"- Claim `{score['claim_id']}` posterior `{score['posterior']:.4f}` "
+            f"from prior `{score['prior']:.4f}`, P(E|H) `{score['likelihood_given_h']:.6f}`, "
+            f"P(E|not H) `{score['likelihood_given_not_h']:.6f}`. "
+            f"Signals: `{', '.join(json.loads(score['signals_json'])) or 'none'}`."
+        )
     lines.extend(
         [
             "",
             "## Evidence Integrity",
             "",
             "- Evidence files were hashed before analysis.",
+            f"- Merkle-DAG root seal: `{integrity_seal['root_seal']}`.",
+            f"- Merkle-DAG nodes: `{integrity_seal['node_count']}` total; relationship blocks: `{integrity_seal['relationship_block_count']}`.",
+            f"- Merkle-DAG verification status: `{integrity_seal['ok']}`.",
             "- The path policy allowed reads from registered evidence roots only.",
             "- The spoliation probe verified that writes into the evidence root are blocked.",
             "- Report, graph, and logs are written only under the configured output directory.",
+            "- Re-verify with: `proofsift verify-integrity --graph outputs/evidence_graph.sqlite`.",
             "",
             "## Reproducibility",
             "",
@@ -160,6 +218,9 @@ def _html(
     clock_drifts: list[dict[str, Any]],
     anomalies: list[dict[str, Any]],
     sequence_recommendations: list[dict[str, Any]],
+    bayesian_scores: list[dict[str, Any]],
+    counterfactual_checks: list[dict[str, Any]],
+    integrity_seal: dict[str, Any],
 ) -> str:
     body = [
         "<!doctype html><html><head><meta charset='utf-8'>",
@@ -168,6 +229,7 @@ def _html(
         "</head><body>",
         f"<h1>ProofSIFT Investigation Report: {html.escape(config.name)}</h1>",
         f"<p><strong>Case:</strong> <code>{html.escape(config.case_id)}</code> | <strong>Claims:</strong> {len(claims)} | <strong>Corrections:</strong> {len(corrections)}</p>",
+        f"<p><strong>Merkle-DAG Root Seal:</strong> <code>{html.escape(integrity_seal['root_seal'])}</code></p>",
     ]
     for claim in claims:
         body.append(f"<h2 class='{html.escape(claim['status'])}'>{html.escape(claim['claim_id'])} - {html.escape(claim['status'])} - {html.escape(claim['severity'])}</h2>")
@@ -211,6 +273,21 @@ def _html(
             f"<li>{html.escape(recommendation['reason'])} "
             f"Tools: <code>{html.escape(tools)}</code></li>"
         )
+    body.append("</ul><h2>Counterfactual Falsification</h2><ul>")
+    for check in counterfactual_checks:
+        body.append(
+            f"<li><code>{html.escape(check['status'])}</code> "
+            f"{html.escape(check['hypothesis'])} for "
+            f"<code>{html.escape(check['claim_id'])}</code>: "
+            f"{html.escape(check['action'])}</li>"
+        )
+    body.append("</ul><h2>Bayesian Forensic Calculus</h2><ul>")
+    for score in _latest_bayesian_scores(bayesian_scores):
+        body.append(
+            f"<li>Claim <code>{html.escape(score['claim_id'])}</code> posterior "
+            f"<code>{score['posterior']:.4f}</code> via "
+            f"<code>P(H|E)=P(E|H)*P(H)/P(E)</code></li>"
+        )
     body.append("</ul></body></html>")
     return "\n".join(body)
 
@@ -223,6 +300,13 @@ def _compact_fields(fields: dict[str, Any]) -> str:
     return "`" + json.dumps(selected, sort_keys=True) + "`"
 
 
+def _latest_bayesian_scores(scores: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    latest: dict[str, dict[str, Any]] = {}
+    for score in scores:
+        latest[score["claim_id"]] = score
+    return sorted(latest.values(), key=lambda item: item["claim_id"])
+
+
 def _accuracy_stub(config: CaseConfig) -> str:
     return f"""# Accuracy Report: {config.name}
 
@@ -233,6 +317,7 @@ Run `proofsift benchmark --case <case.json> --ground-truth <ground_truth.json>` 
 - Evidence reads are limited to the configured evidence root.
 - Writes are limited to the configured output directory.
 - SHA-256 hashes are recorded before analysis.
+- `proofsift verify-integrity --graph <graph.sqlite>` returns a Merkle-DAG root seal over tools, artifacts, claims, and relationship blocks.
 - A spoliation probe attempts to validate a write inside the evidence root and must be rejected.
 
 ## Known Limitations

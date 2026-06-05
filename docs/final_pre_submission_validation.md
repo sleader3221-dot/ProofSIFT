@@ -25,7 +25,7 @@ Results:
 - Clock drifts: `1`
 - Anti-forensics anomalies: `2`
 - MITRE sequence recommendations: `2`
-- Self-corrections: `14`
+- Self-corrections: `23`
 - Tests: `9/9 OK`
 - Local submission file validation: `passed: true`
 - Execution log: `49` events, `16` tool traces, `18` token-metric events

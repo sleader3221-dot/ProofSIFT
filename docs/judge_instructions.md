@@ -65,7 +65,7 @@ proofsift run --case cases/demo_case/case.json --max-iterations 3
   [OK] Negative controls verified - benign processes retained as context
 
 ======================================================================
-  INVESTIGATION COMPLETE - 6 claims, 14 corrections, 7 reports generated
+  INVESTIGATION COMPLETE - 6 claims, 23 corrections, 8 reports generated
 ======================================================================
 ```
 

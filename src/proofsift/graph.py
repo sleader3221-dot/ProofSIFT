@@ -6,12 +6,15 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from .integrity import artifact_content_hash
 from .models import (
     AntiForensicsAnomaly,
     Artifact,
+    BayesianScore,
     Claim,
     ClaimStatus,
     ClockDrift,
+    CounterfactualCheck,
     SequenceRecommendation,
     Severity,
     ToolResult,
@@ -49,7 +52,8 @@ class EvidenceGraph:
                 kind text not null,
                 source text not null,
                 command_id text not null,
-                fields_json text not null
+                fields_json text not null,
+                content_sha256 text
             );
             create table if not exists claims (
                 claim_id text primary key,
@@ -115,13 +119,43 @@ class EvidenceGraph:
                 recommended_paths_json text not null,
                 priority text not null
             );
+            create table if not exists bayesian_scores (
+                score_id text primary key,
+                claim_id text not null,
+                prior real not null,
+                likelihood_given_h real not null,
+                likelihood_given_not_h real not null,
+                evidence_probability real not null,
+                posterior real not null,
+                evidence_kinds_json text not null,
+                signals_json text not null,
+                explanation text not null,
+                model_version text not null
+            );
+            create table if not exists counterfactual_checks (
+                check_id text primary key,
+                claim_id text not null,
+                hypothesis text not null,
+                status text not null,
+                required_artifacts_json text not null,
+                present_artifacts_json text not null,
+                missing_artifacts_json text not null,
+                action text not null,
+                reason text not null
+            );
             create index if not exists idx_observations_source_normalized
                 on observations(source, normalized_utc);
             create index if not exists idx_observations_artifact
                 on observations(artifact_id);
             """
         )
+        self._migrate_schema()
         self.conn.commit()
+
+    def _migrate_schema(self) -> None:
+        artifact_columns = {row["name"] for row in self.conn.execute("pragma table_info(artifacts)")}
+        if "content_sha256" not in artifact_columns:
+            self.conn.execute("alter table artifacts add column content_sha256 text")
 
     def record_tool_result(self, result: ToolResult) -> list[str]:
         self.conn.execute(
@@ -145,10 +179,12 @@ class EvidenceGraph:
 
     def add_artifact(self, artifact: Artifact) -> str:
         artifact_id = artifact.artifact_id or f"art-{uuid4().hex[:12]}"
+        content_hash = artifact_content_hash(artifact.kind, artifact.source, artifact.command_id, artifact.fields)
         self.conn.execute(
             """
             insert or replace into artifacts
-            values (?, ?, ?, ?, ?)
+            (artifact_id, kind, source, command_id, fields_json, content_sha256)
+            values (?, ?, ?, ?, ?, ?)
             """,
             (
                 artifact_id,
@@ -156,6 +192,7 @@ class EvidenceGraph:
                 artifact.source,
                 artifact.command_id,
                 json.dumps(artifact.fields, sort_keys=True),
+                content_hash,
             ),
         )
         self._add_observations(artifact_id, artifact)
@@ -277,6 +314,46 @@ class EvidenceGraph:
         self.conn.commit()
         return recommendation_id
 
+    def add_bayesian_score(self, score: BayesianScore) -> str:
+        score_id = score.score_id or f"bayes-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into bayesian_scores values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                score_id,
+                score.claim_id,
+                score.prior,
+                score.likelihood_given_h,
+                score.likelihood_given_not_h,
+                score.evidence_probability,
+                score.posterior,
+                json.dumps(score.evidence_kinds, sort_keys=True),
+                json.dumps(score.signals, sort_keys=True),
+                score.explanation,
+                score.model_version,
+            ),
+        )
+        self.conn.commit()
+        return score_id
+
+    def add_counterfactual_check(self, check: CounterfactualCheck) -> str:
+        check_id = check.check_id or f"cf-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into counterfactual_checks values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                check_id,
+                check.claim_id,
+                check.hypothesis,
+                check.status,
+                json.dumps(check.required_artifacts, sort_keys=True),
+                json.dumps(check.present_artifacts, sort_keys=True),
+                json.dumps(check.missing_artifacts, sort_keys=True),
+                check.action,
+                check.reason,
+            ),
+        )
+        self.conn.commit()
+        return check_id
+
     def artifacts(self, kind: str | None = None) -> list[sqlite3.Row]:
         if kind:
             return list(self.conn.execute("select * from artifacts where kind = ?", (kind,)))
@@ -344,6 +421,12 @@ class EvidenceGraph:
                 """
             )
         )
+
+    def bayesian_scores(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from bayesian_scores order by score_id"))
+
+    def counterfactual_checks(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from counterfactual_checks order by check_id"))
 
     def normalized_observations_between(
         self,

@@ -25,6 +25,7 @@ class AnomalyKind(str, Enum):
     ANTI_FORENSICS = "ANTI_FORENSICS"
     PARSER = "PARSER"
     SEQUENCE_GAP = "SEQUENCE_GAP"
+    COUNTERFACTUAL = "COUNTERFACTUAL"
 
 
 @dataclass(frozen=True)
@@ -82,6 +83,34 @@ class SequenceRecommendation:
     recommended_paths: list[str]
     priority: Severity
     recommendation_id: str | None = None
+
+
+@dataclass(frozen=True)
+class BayesianScore:
+    claim_id: str
+    prior: float
+    likelihood_given_h: float
+    likelihood_given_not_h: float
+    evidence_probability: float
+    posterior: float
+    evidence_kinds: list[str]
+    signals: list[str]
+    explanation: str
+    model_version: str = "bayesian-forensic-calculus-v1"
+    score_id: str | None = None
+
+
+@dataclass(frozen=True)
+class CounterfactualCheck:
+    claim_id: str
+    hypothesis: str
+    status: str
+    required_artifacts: list[str]
+    present_artifacts: list[str]
+    missing_artifacts: list[str]
+    action: str
+    reason: str
+    check_id: str | None = None
 
 
 @dataclass(frozen=True)

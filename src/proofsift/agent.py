@@ -7,8 +7,11 @@ from typing import Any, Callable
 
 from .anti_forensics import AntiForensicsDetector
 from .audit import AuditLogger
+from .bayesian import BayesianScorer
 from .clock_drift import ClockDriftNormalizer, DriftSearchBoundary
+from .counterfactual import CounterfactualFalsifier
 from .graph import EvidenceGraph
+from .integrity import calculate_integrity_seal
 from .mitre_sequence import MitreSequenceValidator
 from .models import CaseConfig, Claim, ClaimStatus, Severity
 from .reporting import write_reports
@@ -32,6 +35,8 @@ class SelfCorrectingInvestigator:
         self.clock_drift = ClockDriftNormalizer(self.graph, self.audit)
         self.anti_forensics = AntiForensicsDetector(self.graph, self.audit)
         self.mitre_sequence = MitreSequenceValidator(self.graph, self.audit)
+        self.counterfactual = CounterfactualFalsifier(self.graph, self.audit)
+        self.bayesian = BayesianScorer(self.graph, self.audit)
         self.t = terminal
         self._start_time = 0.0
 
@@ -57,10 +62,13 @@ class SelfCorrectingInvestigator:
             self.t.investigate()
         self.audit.event("agent", "iteration.start", {"iteration": 1, "phase": "memory and network triage"})
         self._network_hypotheses(iteration=1)
+        self._apply_bayesian_scores(iteration=1)
         if self.t:
             self.t.ok("Network triage complete - C2 hypotheses generated from indicator matches")
         sequence_recommendations = self._validate_mitre_sequence(iteration=1)
         needs_disk = self._verify_claims(iteration=1)
+        needs_disk = self._run_counterfactuals(iteration=1) or needs_disk
+        self._apply_bayesian_scores(iteration=1)
         needs_disk = needs_disk or bool(sequence_recommendations)
         if self.t and sequence_recommendations:
             for rec in sequence_recommendations:
@@ -68,6 +76,11 @@ class SelfCorrectingInvestigator:
                     rec.target_claim_id,
                     "MitreSequenceValidator flagged a structural gap!",
                     f"Missing: {' or '.join(rec.required_tactics)} artifacts.",
+                )
+                self.t.counterfactual_failure(
+                    rec.target_claim_id,
+                    ["Shimcache/AppCompatCache entry", "Amcache program inventory", "Security.evtx Event ID 4688"],
+                    "targeted_subroutine.requested",
                 )
         self.audit.event(
             "agent",
@@ -110,6 +123,8 @@ class SelfCorrectingInvestigator:
             self._apply_anti_forensics_adjustments(anomalies, iteration=2)
             self._verify_claims(iteration=2)
             self._validate_mitre_sequence(iteration=2)
+            self._run_counterfactuals(iteration=2)
+            self._apply_bayesian_scores(iteration=2)
             self.audit.event("agent", "iteration.end", {"iteration": 2})
 
         if self.config.max_iterations >= 3:
@@ -120,8 +135,21 @@ class SelfCorrectingInvestigator:
             if self.t:
                 self.t.ok("Negative controls verified - benign processes retained as context, not escalated")
             self._verify_claims(iteration=3)
+            self._run_counterfactuals(iteration=3)
+            self._apply_bayesian_scores(iteration=3)
             self.audit.event("agent", "iteration.end", {"iteration": 3})
 
+        integrity_seal = calculate_integrity_seal(self.graph)
+        self.audit.event(
+            "integrity",
+            "merkle_root.sealed",
+            {
+                "root_seal": integrity_seal["root_seal"],
+                "node_count": integrity_seal["node_count"],
+                "relationship_block_count": integrity_seal["relationship_block_count"],
+                "ok": integrity_seal["ok"],
+            },
+        )
         reports = write_reports(self.config, self.graph, self.output_dir)
         elapsed = time.perf_counter() - self._start_time
         result = {
@@ -134,6 +162,9 @@ class SelfCorrectingInvestigator:
             "clock_drifts": [dict(row) for row in self.graph.clock_drifts()],
             "anomalies": [dict(row) for row in self.graph.anomalies()],
             "sequence_recommendations": [dict(row) for row in self.graph.sequence_recommendations()],
+            "bayesian_scores": [dict(row) for row in self.graph.bayesian_scores()],
+            "counterfactual_checks": [dict(row) for row in self.graph.counterfactual_checks()],
+            "integrity_seal": integrity_seal,
         }
         self.audit.event("agent", "run.end", {"case_id": self.config.case_id, "claim_count": len(result["claims"]), "report_md": reports["markdown"]})
         if self.t:
@@ -362,6 +393,76 @@ class SelfCorrectingInvestigator:
                             self.t.claim_downgrade(claim.claim_id, "downgraded to INFERRED - disk execution evidence missing, pending corroboration")
         return needs_disk
 
+    def _run_counterfactuals(self, iteration: int) -> bool:
+        checks = self.counterfactual.evaluate()
+        failures = self.counterfactual.failing(checks)
+        for check in failures:
+            if self.t and hasattr(self.t, "counterfactual_failure"):
+                self.t.counterfactual_failure(check.claim_id, check.missing_artifacts, check.action)
+            if check.action != "downgrade_confirmed_claim":
+                continue
+            row = self.graph.conn.execute("select * from claims where claim_id = ?", (check.claim_id,)).fetchone()
+            if not row:
+                continue
+            evidence_ids = self._claim_evidence(check.claim_id)
+            before = dict(row)
+            claim = _row_to_claim(row, evidence_ids)
+            claim.status = ClaimStatus.INFERRED
+            claim.confidence = min(claim.confidence, 0.69)
+            if check.reason not in claim.contradictions:
+                claim.contradictions.append(check.reason)
+            self.graph.upsert_claim(claim)
+            self.graph.add_correction(
+                iteration,
+                claim.claim_id,
+                before,
+                _claim_dict(claim),
+                "counterfactual alibi check rejected confirmed status",
+            )
+            self.audit.event(
+                "agent",
+                "claim.corrected",
+                {
+                    "iteration": iteration,
+                    "claim_id": claim.claim_id,
+                    "reason": "counterfactual alibi check rejected confirmed status",
+                    "missing_artifacts": check.missing_artifacts,
+                },
+            )
+        return bool(failures)
+
+    def _apply_bayesian_scores(self, iteration: int) -> None:
+        for row in self.graph.claims():
+            evidence_ids = self._claim_evidence(row["claim_id"])
+            anomaly_types = self._anomaly_types_for_claim(row, evidence_ids)
+            score = self.bayesian.score_claim(row["claim_id"], row["statement"], evidence_ids, anomaly_types)
+            current = float(row["confidence"])
+            if abs(current - score.posterior) < 0.0001:
+                continue
+            before = dict(row)
+            claim = _row_to_claim(row, evidence_ids)
+            claim.confidence = score.posterior
+            self.graph.upsert_claim(claim)
+            self.graph.add_correction(
+                iteration,
+                claim.claim_id,
+                before,
+                _claim_dict(claim),
+                "Bayesian posterior recalculated from forensic probability matrix",
+            )
+            self.audit.event(
+                "agent",
+                "claim.confidence_adjusted",
+                {
+                    "iteration": iteration,
+                    "claim_id": claim.claim_id,
+                    "from": current,
+                    "to": score.posterior,
+                    "reason": "Bayesian forensic calculus",
+                    "formula": "P(H|E)=P(E|H)*P(H)/P(E)",
+                },
+            )
+
     def _negative_controls(self, iteration: int) -> None:
         benign_names = {name.lower() for name in self.config.indicators.get("benign_processes", ["svchost.exe"])}
         for process in self._artifacts("process"):
@@ -387,23 +488,22 @@ class SelfCorrectingInvestigator:
                     continue
                 claim = _row_to_claim(row, evidence_ids)
                 before = dict(row)
-                claim.confidence = min(0.99, round(claim.confidence * anomaly.confidence_multiplier, 4))
-                note = f"anti-forensics anomaly `{anomaly.anomaly_type}` adjusted confidence multiplier to {anomaly.confidence_multiplier}"
+                note = f"anti-forensics anomaly `{anomaly.anomaly_type}` will be folded into Bayesian posterior scoring"
                 if note not in claim.contradictions:
                     claim.contradictions.append(note)
                 claim.rationale = f"{claim.rationale} Anti-forensics detector flagged {anomaly.anomaly_type} on {anomaly.target_path}."
                 self.graph.upsert_claim(claim)
-                self.graph.add_correction(iteration, claim.claim_id, before, _claim_dict(claim), "anti-forensics confidence adjustment")
+                self.graph.add_correction(iteration, claim.claim_id, before, _claim_dict(claim), "anti-forensics anomaly added to Bayesian scoring context")
                 self.audit.event(
                     "agent",
-                    "claim.confidence_adjusted",
+                    "claim.anti_forensics_context_added",
                     {
                         "iteration": iteration,
                         "claim_id": claim.claim_id,
                         "target_path": anomaly.target_path,
                         "anomaly_type": anomaly.anomaly_type,
-                        "confidence_multiplier": anomaly.confidence_multiplier,
-                        "new_confidence": claim.confidence,
+                        "legacy_confidence_multiplier": anomaly.confidence_multiplier,
+                        "scoring_model": "Bayesian posterior",
                     },
                 )
 
@@ -428,6 +528,18 @@ class SelfCorrectingInvestigator:
         placeholders = ",".join("?" for _ in evidence_ids)
         rows = self.graph.conn.execute(f"select fields_json from artifacts where artifact_id in ({placeholders})", evidence_ids).fetchall()
         return any(needle in row["fields_json"].lower() for row in rows)
+
+    def _anomaly_types_for_claim(self, row, evidence_ids: list[str]) -> list[str]:
+        matches: list[str] = []
+        for anomaly in self.graph.anomalies("ANTI_FORENSICS"):
+            target_name = PureWindowsPath(anomaly["target"]).name.lower()
+            if target_name not in row["statement"].lower() and not self._evidence_mentions(evidence_ids, target_name):
+                continue
+            details = json.loads(anomaly["details_json"] or "{}")
+            anomaly_type = details.get("type")
+            if anomaly_type:
+                matches.append(anomaly_type)
+        return sorted(set(matches))
 
     @staticmethod
     def _matching_evidence(target_name: str, *artifact_groups: list[dict[str, Any]]) -> list[dict[str, Any]]:

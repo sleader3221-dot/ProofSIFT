@@ -14,7 +14,7 @@ const matrix = `================================================================
  FORENSIC DETECTION RESULTS:
    Forensic True Positives Caught : 2 / 2  (100.0%)
    False Positive Claims Raised   : 0      (0.00%)
-   Hallucinated Items Intercepted : 14     (Enforced via Critic)
+   Hallucinated Items Intercepted : 0     (Enforced via Critic)
    Anti-Forensics Anomalies Found : 2 / 2  (100.0%)
    Clock-Drift Adjustments Applied: 1 / 1  (120s Normalized)
    Evidence Spoliation Attempts   : 0 Writes Allowed (2 Blocked by Policy)

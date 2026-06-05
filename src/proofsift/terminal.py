@@ -29,7 +29,14 @@ def self_correct(iteration: int, total: int, action: str) -> None:
 def critic_review(anomaly: str, multiplier: float) -> None:
     print(f"  [{timestamp()}] [CRITIC REVIEW] Differential Anti-Forensics Detector verified a mismatch:", flush=True)
     print(f"  [{timestamp()}]   -> Anomaly: {anomaly} detected.", flush=True)
-    print(f"  [{timestamp()}]   -> Action: Adjusting claim confidence via a {multiplier}x malicious multiplier.", flush=True)
+    print(f"  [{timestamp()}]   -> Action: Sending anomaly into Bayesian posterior scoring (legacy multiplier {multiplier}x retained as evidence metadata).", flush=True)
+
+
+def counterfactual_failure(claim_id: str, missing_artifacts: list[str], action: str) -> None:
+    missing = ", ".join(missing_artifacts)
+    print(f"  [{timestamp()}] [COUNTERFACTUAL FAILURE] Denied escalation - Expected supporting artifact(s) missing: {missing}.", flush=True)
+    print(f"  [{timestamp()}]   -> Claim: {claim_id}", flush=True)
+    print(f"  [{timestamp()}]   -> Action: {action}", flush=True)
 
 
 def claim_escalation(claim_id: str, old_status: str, new_status: str, severity: str) -> None:

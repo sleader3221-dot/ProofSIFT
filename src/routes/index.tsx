@@ -167,7 +167,7 @@ function Dashboard() {
             <dl className="space-y-2 font-mono text-xs">
               {[
                 ["max iterations", "3"],
-                ["max corrections", "14"],
+                ["max corrections", "23"],
                 ["policy", "SafePathPolicy (read-only)"],
                 ["evidence graph", "outputs/evidence_graph.sqlite"],
                 ["audit log", "outputs/audit.jsonl"],

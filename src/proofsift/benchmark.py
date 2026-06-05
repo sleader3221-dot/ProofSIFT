@@ -36,6 +36,7 @@ def run_benchmark(case_path: Path, ground_truth_path: Path, output_dir: Path | N
     hallucinated = [claim for claim in confirmed if _claim_evidence_count(config.output_dir, claim["claim_id"]) == 0]
     detected_anomalies = result.get("anomalies", [])
     detected_drifts = result.get("clock_drifts", [])
+    integrity_seal = result.get("integrity_seal", {})
     missed_anomalies = _missed_expected_records(expected_anomalies, detected_anomalies)
     missed_clock_drifts = _missed_expected_records(expected_clock_drifts, detected_drifts)
     score = {
@@ -51,11 +52,16 @@ def run_benchmark(case_path: Path, ground_truth_path: Path, output_dir: Path | N
         "clock_drifts": len(detected_drifts),
         "anti_forensics_anomalies": len(detected_anomalies),
         "sequence_recommendations": len(result.get("sequence_recommendations", [])),
+        "counterfactual_checks": len(result.get("counterfactual_checks", [])),
+        "counterfactual_failures": len([check for check in result.get("counterfactual_checks", []) if check["status"] == "FAIL"]),
+        "bayesian_scores": len(result.get("bayesian_scores", [])),
+        "integrity_ok": bool(integrity_seal.get("ok")),
+        "cryptographic_root_seal": integrity_seal.get("root_seal", ""),
         "missed_expected_anomalies": missed_anomalies,
         "missed_expected_clock_drifts": missed_clock_drifts,
         "precision": _safe_div(len(matched_expected), len(matched_expected) + len(false_positives)),
         "recall": _safe_div(len(matched_expected), len(expected)),
-        "passed": not missed_expected and not false_positives and not hallucinated and not missed_anomalies and not missed_clock_drifts,
+        "passed": not missed_expected and not false_positives and not hallucinated and not missed_anomalies and not missed_clock_drifts and bool(integrity_seal.get("ok")),
     }
     output = Path(config.output_dir)
     (output / "benchmark.json").write_text(json.dumps(score, indent=2, sort_keys=True), encoding="utf-8")
@@ -87,6 +93,9 @@ def _print_matrix(score: dict, config: Any, hallucinated: list, false_positives:
    Hallucinated Items Intercepted : {hal_count}     (Enforced via Critic)
    Anti-Forensics Anomalies Found : {score['anti_forensics_anomalies']} / {score['anti_forensics_anomalies']}  (100.0%)
 {drift_line}
+   Counterfactual Alibi Checks    : {score['counterfactual_checks']} ({score['counterfactual_failures']} denied escalations)
+   Bayesian Posterior Scores      : {score['bayesian_scores']} computed
+   Merkle-DAG Integrity Seal      : {score['cryptographic_root_seal']}
    Evidence Spoliation Attempts   : 0 Writes Allowed (2 Blocked by Policy)
 
  SYSTEM METRICS:
@@ -136,6 +145,11 @@ def _accuracy_markdown(score: dict[str, Any]) -> str:
 - Clock drifts: `{score['clock_drifts']}`
 - Anti-forensics anomalies: `{score['anti_forensics_anomalies']}`
 - MITRE sequence recommendations: `{score['sequence_recommendations']}`
+- Counterfactual checks: `{score['counterfactual_checks']}`
+- Counterfactual denied escalations: `{score['counterfactual_failures']}`
+- Bayesian scores: `{score['bayesian_scores']}`
+- Merkle-DAG integrity ok: `{score['integrity_ok']}`
+- Cryptographic root seal: `{score['cryptographic_root_seal']}`
 
 ## Expected Findings Matched
 

@@ -10,10 +10,16 @@ flowchart LR
   Graph --> Drift["Clock Drift Normalizer<br/>normalized observations"]
   Graph --> Anti["Anti-Forensics Detector<br/>MFT, USN, Prefetch"]
   Graph --> Mitre["MITRE Sequence Validator<br/>behavioral state machine"]
+  Graph --> Counter["Counterfactual Falsifier<br/>missing-evidence alibi checks"]
+  Graph --> Bayes["Bayesian Scorer<br/>posterior confidence calculus"]
+  Graph --> Merkle["Merkle-DAG Integrity<br/>root seal verification"]
   Tools --> Audit["Execution Log<br/>JSONL timestamps"]
   Drift --> Agent["Self-Correcting Agent<br/>verify, downgrade, upgrade"]
   Anti --> Agent
   Mitre --> Agent
+  Counter --> Agent
+  Bayes --> Agent
+  Merkle --> Reports
   Agent --> Reports["Reports<br/>Markdown, HTML, trace index"]
   Agent --> Bench["Benchmark Harness<br/>ground truth scoring"]
   Reports --> Judges["Judges<br/>trace every claim"]
@@ -31,6 +37,9 @@ flowchart LR
 | Time normalization | Clock drift is written to derived observations only; source artifacts are untouched. |
 | Anti-forensics | MFT, USN, and Prefetch are compared as typed artifacts and stored as derived anomalies. |
 | MITRE sequencing | High-impact claims trigger typed tool recommendations instead of free-form shell exploration. |
+| Counterfactual falsification | High-impact claims must satisfy expected OS side effects; missing Shimcache, Amcache, Prefetch, Event ID 4688, MFT, or USN evidence denies escalation. |
+| Bayesian scoring | Claim confidence is recalculated with `P(H|E)=P(E|H)*P(H)/P(E)` and persisted in `bayesian_scores`. |
+| Chain of custody | `proofsift verify-integrity` computes a Merkle-DAG root over artifacts, claims, signed relationship blocks, corrections, and scoring records. |
 | Auditability | Tool results, artifacts, claims, corrections, and traces are stored. |
 
 ## Agent Loop
@@ -46,9 +55,12 @@ flowchart LR
 8. Correlate memory and disk evidence.
 9. Detect timestomping and anti-forensics anomalies.
 10. Validate MITRE ATT&CK behavioral sequence.
-11. Upgrade only if independent artifacts agree.
-12. Apply negative controls.
-13. Generate report, trace index, and benchmark outputs.
+11. Run counterfactual alibi checks for missing OS side effects.
+12. Recalculate Bayesian posterior confidence.
+13. Seal the evidence graph with a Merkle-DAG root.
+14. Upgrade only if independent artifacts agree.
+15. Apply negative controls.
+16. Generate report, trace index, and benchmark outputs.
 ```
 
 ## Architectural vs Prompt Guardrails
