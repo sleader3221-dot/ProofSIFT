@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { ArchitectureDiagramPanel } from "@/components/ArchitectureDiagramPanel";
 import { Panel } from "@/components/Panel";
 import {
   pipelinePhases,
@@ -41,6 +42,8 @@ function ArchitecturePage() {
           iterations, instrumented at every step.
         </p>
       </div>
+
+      <ArchitectureDiagramPanel />
 
       <Panel
         title="pipeline phases"
