@@ -5,10 +5,10 @@
   "framework": "vite",
   "installCommand": "npm install",
   "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/", "destination": "/architecture", "permanent": false }
+  ],
   "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
