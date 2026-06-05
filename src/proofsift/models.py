@@ -26,6 +26,8 @@ class AnomalyKind(str, Enum):
     PARSER = "PARSER"
     SEQUENCE_GAP = "SEQUENCE_GAP"
     COUNTERFACTUAL = "COUNTERFACTUAL"
+    BMC_CONSTRAINT = "BMC_CONSTRAINT"
+    MFT_ENTROPY = "MFT_ENTROPY"
 
 
 @dataclass(frozen=True)
@@ -111,6 +113,46 @@ class CounterfactualCheck:
     action: str
     reason: str
     check_id: str | None = None
+
+
+@dataclass(frozen=True)
+class BmcResult:
+    check_name: str
+    status: str
+    severity: Severity
+    target: str
+    timeline_validity: float
+    evidence_ids: list[str]
+    contradiction: str
+    details: dict[str, Any]
+    result_id: str | None = None
+
+
+@dataclass(frozen=True)
+class EntropyAnalysis:
+    target_path: str
+    verdict: str
+    severity: Severity
+    entropy_bits: float
+    baseline_delta_seconds_per_record: float
+    target_delta_seconds_per_record: float
+    evidence_ids: list[str]
+    details: dict[str, Any]
+    analysis_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ToolAuthorization:
+    command_id: str
+    tool_name: str
+    nonce_hash: str
+    payload_hash: str
+    signature: str
+    status: str
+    schema_valid: bool
+    issued_at_utc: str
+    expires_at_utc: str
+    authorization_id: str | None = None
 
 
 @dataclass(frozen=True)

@@ -47,6 +47,8 @@ The agent displays real-time reasoning during execution:
 [COUNTERFACTUAL FAILURE] Denied escalation - Expected execution artifact in Shimcache/AppCompatCache entry missing
 [CLAIM ESCALATION] upgraded from [INFERRED] to [CONFIRMED - CRITICAL]
 [CRITIC REVIEW] Anomaly: mft_creation_postdates_prefetch_execution -> Bayesian posterior scoring
+[BMC SOLVER] Verifying state consistency matrix... CONTRADICTION DETECTED: USN record sequence violates causal time-density bounds.
+[MFT ENTROPY] Structural metadata entropy spike detected: C:\Users\victim\AppData\Roaming\evil.exe
 [INTEGRITY] Merkle-DAG root seal: sha256:<root>
 ```
 
@@ -60,10 +62,13 @@ The agent displays real-time reasoning during execution:
   Forensic True Positives Caught : 2 / 2  (100.0%)
    False Positive Claims Raised   : 0      (0.00%)
    Hallucinated Items Intercepted : 0     (Enforced via Critic)
-   Anti-Forensics Anomalies Found : 2 / 2  (100.0%)
+   Anti-Forensics Anomalies Found : 3 / 3  (100.0%)
   Clock-Drift Adjustments Applied: 1 / 1  (120s Normalized)
    Counterfactual Alibi Checks    : 8 (4 denied escalations)
    Bayesian Posterior Scores      : 15 computed
+   BMC Timeline Contradictions    : 3 proven
+   MFT Entropy Anomalies          : 1 / 1 analyzed
+   MCP Ephemeral Authorizations   : 16 / 16 accepted
    Merkle-DAG Integrity Seal      : sha256:<root>
    Evidence Spoliation Attempts   : 0 Writes Allowed (2 Blocked by Policy)
  SYSTEM METRICS:
@@ -85,6 +90,9 @@ Expected behavior:
 - `svchost.exe` is kept as context, not a malicious finding.
 - EVTX timestamps are normalized by a detected `+120s` drift against memory network evidence.
 - `evil.exe` timestomping-style metadata divergence is flagged as anti-forensics signal.
+- Formal bounded model checking proves three impossible timeline constraints across Prefetch, Amcache, MFT, and USN.
+- MFT sequence entropy flags `evil.exe` as an anomalous malicious timestomping pattern.
+- Every typed tool execution is covered by a one-time HMAC-SHA256 nonce authorization record.
 - MITRE ATT&CK sequence gaps trigger targeted tool recommendations before confirmation.
 
 ## Demo Evidence Files
@@ -103,7 +111,7 @@ Expected behavior:
 | `autoruns.csv` | Updater -> evil.exe in HKCU\Run | Registry persistence |
 | `payload_notes.txt` | "evil beacon initialized", "c2 channel: 203.0.113.50:443" | Keyword/YARA IOC match |
 
-## 90 Advanced Features
+## 105 Advanced Features
 
 | # | Feature | Category |
 |---|---------|----------|
@@ -124,6 +132,9 @@ Expected behavior:
 | 76-80 | Artifact content hashes, signed claim-evidence relationship blocks, Merkle-DAG node hashing, root seal generation, integrity verification CLI | Cryptographic Chain of Custody |
 | 81-85 | Counterfactual alibi checks, denied-escalation logs, missing Shimcache/Amcache/Event 4688 tests, confirmed-claim downgrade gate, SQLite counterfactual audit table | Active Falsification |
 | 86-90 | Bayesian prior model, likelihood matrix, posterior confidence formula, score persistence, benchmark/report integration | Mathematical Confidence |
+| 91-95 | Bounded model checker, causal time-density constraints, satisfiability status, contradiction persistence, BMC audit traces | Formal Timeline Verification |
+| 96-100 | MFT sequence entropy, record-number baseline, execution-to-metadata density scoring, structural timestomp verdict, report/benchmark integration | Metadata Entropy |
+| 101-105 | One-time MCP nonce issue, HMAC-SHA256 signature, payload hash binding, replay rejection, tool authorization evidence table | Ephemeral Tool Authorization |
 
 ## Repository Layout
 
@@ -135,9 +146,13 @@ src/proofsift/              Core package
 ├── benchmark.py            run_benchmark — ground-truth scoring + matrix output
 ├── cli.py                  CLI — run, benchmark, trace, list-tools, validate, mcp-stdio
 ├── clock_drift.py          ClockDriftNormalizer — cross-source timestamp alignment
+├── constraint_engine.py    TimelineConstraintEngine — bounded model checking
+├── crypto_auth.py          EphemeralToolAuthorizer — one-time MCP nonce envelopes
 ├── graph.py                EvidenceGraph — SQLite provenance store
+├── integrity.py            Merkle-DAG graph sealing and verification
 ├── mcp_server.py           JSON-RPC stdio bridge for Protocol SIFT
 ├── mitre_sequence.py       MitreSequenceValidator — tactic state machine
+├── mft_entropy.py          MftEntropyAnalyzer — structural timestomp scoring
 ├── models.py               Data classes: Artifact, Claim, ToolResult, CaseConfig
 ├── reporting.py            Markdown/HTML report generators
 ├── security.py             SafePathPolicy, SHA-256, path validation
@@ -148,11 +163,11 @@ src/proofsift/              Core package
 └── __main__.py             Entry: python -m proofsift
 
 cases/demo_case/            Runnable demo evidence and ground truth
-tests/                      Unit tests (9 tests)
+tests/                      Unit tests (17 tests)
 setup_sift.sh               One-command installer for SIFT Workstation
 ```
 
-Additional advanced modules: `bayesian.py`, `counterfactual.py`, and `integrity.py` add posterior confidence calculus, active missing-evidence falsification, and Merkle-DAG graph verification.
+Additional advanced modules: `bayesian.py`, `counterfactual.py`, `integrity.py`, `constraint_engine.py`, `mft_entropy.py`, and `crypto_auth.py` add posterior confidence calculus, active missing-evidence falsification, Merkle-DAG graph verification, bounded model checking, structural MFT entropy, and one-time tool authorization.
 
 ## Setup Script (SIFT Workstation)
 
@@ -194,7 +209,7 @@ proofsift trace --graph cases/demo_case/outputs/evidence_graph.sqlite --claim-id
 proofsift verify-integrity --graph cases/demo_case/outputs/evidence_graph.sqlite
 ```
 
-Returns a single `sha256:<root>` Merkle-DAG seal over tool runs, artifacts, observations, claims, signed claim-evidence relationship blocks, corrections, Bayesian scores, and counterfactual checks.
+Returns a single `sha256:<root>` Merkle-DAG seal over tool runs, artifacts, observations, claims, signed claim-evidence relationship blocks, corrections, Bayesian scores, counterfactual checks, BMC results, entropy analyses, and tool authorizations.
 
 ## Validate Submission
 
@@ -210,7 +225,8 @@ proofsift validate-submission --root .
 | IR accuracy | CONFIRMED requires >=2 independent artifact kinds; negative controls prevent benign escalation |
 | Breadth and depth | 16 typed tools across memory, network, execution, registry, filesystem, event logs, IOC scans |
 | Constraint implementation | Typed tools + SafePathPolicy instead of raw shell access; spoliation probe proves writes blocked |
-| Audit trail quality | JSONL execution log, SQLite evidence graph, trace command, Markdown + HTML reports |
+| Audit trail quality | JSONL execution log, SQLite evidence graph, Merkle-DAG root seal, trace command, Markdown + HTML reports |
+| Advanced verification | BMC contradictions, MFT entropy, Bayesian calculus, counterfactual alibis, and nonce-backed MCP tool calls |
 | Usability | Zero runtime dependencies for demo mode; runs on any Python 3.10+ system |
 
 ## Built With

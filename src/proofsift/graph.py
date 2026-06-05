@@ -11,12 +11,15 @@ from .models import (
     AntiForensicsAnomaly,
     Artifact,
     BayesianScore,
+    BmcResult,
     Claim,
     ClaimStatus,
     ClockDrift,
     CounterfactualCheck,
+    EntropyAnalysis,
     SequenceRecommendation,
     Severity,
+    ToolAuthorization,
     ToolResult,
 )
 from .time_utils import TIMESTAMP_FIELDS, format_utc, parse_utc
@@ -142,6 +145,40 @@ class EvidenceGraph:
                 missing_artifacts_json text not null,
                 action text not null,
                 reason text not null
+            );
+            create table if not exists bmc_results (
+                result_id text primary key,
+                check_name text not null,
+                status text not null,
+                severity text not null,
+                target text not null,
+                timeline_validity real not null,
+                evidence_json text not null,
+                contradiction text not null,
+                details_json text not null
+            );
+            create table if not exists entropy_analyses (
+                analysis_id text primary key,
+                target_path text not null,
+                verdict text not null,
+                severity text not null,
+                entropy_bits real not null,
+                baseline_delta_seconds_per_record real not null,
+                target_delta_seconds_per_record real not null,
+                evidence_json text not null,
+                details_json text not null
+            );
+            create table if not exists tool_authorizations (
+                authorization_id text primary key,
+                command_id text not null,
+                tool_name text not null,
+                nonce_hash text not null,
+                payload_hash text not null,
+                signature text not null,
+                status text not null,
+                schema_valid integer not null,
+                issued_at_utc text not null,
+                expires_at_utc text not null
             );
             create index if not exists idx_observations_source_normalized
                 on observations(source, normalized_utc);
@@ -354,6 +391,64 @@ class EvidenceGraph:
         self.conn.commit()
         return check_id
 
+    def add_bmc_result(self, result: BmcResult) -> str:
+        result_id = result.result_id or f"bmc-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into bmc_results values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                result_id,
+                result.check_name,
+                result.status,
+                result.severity.value if isinstance(result.severity, Severity) else result.severity,
+                result.target,
+                result.timeline_validity,
+                json.dumps(result.evidence_ids, sort_keys=True),
+                result.contradiction,
+                json.dumps(result.details, sort_keys=True),
+            ),
+        )
+        self.conn.commit()
+        return result_id
+
+    def add_entropy_analysis(self, analysis: EntropyAnalysis) -> str:
+        analysis_id = analysis.analysis_id or f"entropy-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into entropy_analyses values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                analysis_id,
+                analysis.target_path,
+                analysis.verdict,
+                analysis.severity.value if isinstance(analysis.severity, Severity) else analysis.severity,
+                analysis.entropy_bits,
+                analysis.baseline_delta_seconds_per_record,
+                analysis.target_delta_seconds_per_record,
+                json.dumps(analysis.evidence_ids, sort_keys=True),
+                json.dumps(analysis.details, sort_keys=True),
+            ),
+        )
+        self.conn.commit()
+        return analysis_id
+
+    def add_tool_authorization(self, authorization: ToolAuthorization) -> str:
+        authorization_id = authorization.authorization_id or f"auth-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into tool_authorizations values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                authorization_id,
+                authorization.command_id,
+                authorization.tool_name,
+                authorization.nonce_hash,
+                authorization.payload_hash,
+                authorization.signature,
+                authorization.status,
+                1 if authorization.schema_valid else 0,
+                authorization.issued_at_utc,
+                authorization.expires_at_utc,
+            ),
+        )
+        self.conn.commit()
+        return authorization_id
+
     def artifacts(self, kind: str | None = None) -> list[sqlite3.Row]:
         if kind:
             return list(self.conn.execute("select * from artifacts where kind = ?", (kind,)))
@@ -427,6 +522,15 @@ class EvidenceGraph:
 
     def counterfactual_checks(self) -> list[sqlite3.Row]:
         return list(self.conn.execute("select * from counterfactual_checks order by check_id"))
+
+    def bmc_results(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from bmc_results order by result_id"))
+
+    def entropy_analyses(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from entropy_analyses order by analysis_id"))
+
+    def tool_authorizations(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from tool_authorizations order by authorization_id"))
 
     def normalized_observations_between(
         self,

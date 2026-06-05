@@ -8,13 +8,16 @@
 export const metrics = {
   ingestedArtifacts: 1429,
   generatedClaims: 6,
-  selfCorrections: 23,
+  selfCorrections: 31,
   clockDrifts: 1,
   clockDriftOffset: "120s",
-  antiForensics: 2,
+  antiForensics: 3,
   spoliationBlocked: 2,
   counterfactualChecks: 8,
   bayesianScores: 15,
+  bmcContradictions: 3,
+  mftEntropyAnomalies: 1,
+  toolAuthorizations: 16,
   merkleRoot: "sha256:<verified-root>",
 };
 
@@ -386,6 +389,15 @@ export const antiForensicsAnomalies = [
     details: "$STANDARD_INFORMATION created (14:10:05Z) > modified (14:02:05Z)",
     evidenceIds: ["art-mft-evil"],
   },
+  {
+    id: "anom-af-03",
+    anomaly_type: "mft_creation_postdates_usn_activity",
+    target: "evil.exe",
+    severity: "HIGH",
+    multiplier: 1.1,
+    details: "$UsnJrnl file activity predates MFT creation metadata by >300s",
+    evidenceIds: ["art-mft-evil", "art-usn-evil"],
+  },
 ];
 export const antiForensicsThresholds = {
   max_creation_to_execution_skew_seconds: 300,
@@ -426,7 +438,16 @@ export const clockDriftDetail = {
 export interface AuditEvent {
   event_id: string;
   timestamp_utc: string;
-  actor: "agent" | "tool" | "anti_forensics" | "mitre_sequence" | "clock_drift" | "policy";
+  actor:
+    | "agent"
+    | "tool"
+    | "anti_forensics"
+    | "mitre_sequence"
+    | "clock_drift"
+    | "policy"
+    | "bmc_solver"
+    | "mft_entropy"
+    | "tool_authorization";
   action: string;
   details?: Record<string, unknown>;
 }
@@ -523,6 +544,27 @@ export const auditLog: AuditEvent[] = [
     details: { type: "mft_creation_postdates_prefetch_execution", multiplier: 1.12 },
   },
   {
+    event_id: "evt-44dac9370810",
+    timestamp_utc: "T+00.090s",
+    actor: "bmc_solver",
+    action: "contradiction.detected",
+    details: { contradiction: "USN record sequence violates causal time-density bounds." },
+  },
+  {
+    event_id: "evt-44dac9370811",
+    timestamp_utc: "T+00.091s",
+    actor: "mft_entropy",
+    action: "analysis.completed",
+    details: { verdict: "ANOMALOUS_MALICIOUS_TIMESTOMPING", entropy_bits: 1.4729 },
+  },
+  {
+    event_id: "evt-44dac9370812",
+    timestamp_utc: "T+00.092s",
+    actor: "tool_authorization",
+    action: "nonce.consumed",
+    details: { accepted: 16, total: 16 },
+  },
+  {
     event_id: "evt-55ebdb481910",
     timestamp_utc: "T+00.099s",
     actor: "agent",
@@ -580,6 +622,10 @@ export const cliCommands = [
   {
     cmd: "proofsift benchmark --case cases/demo_case/case.json --ground-truth cases/demo_case/ground_truth.json",
     desc: "Score precision/recall against ground truth.",
+  },
+  {
+    cmd: "proofsift verify-integrity --graph cases/demo_case/outputs/evidence_graph.sqlite",
+    desc: "Return the Merkle-DAG root seal over artifacts, claims, BMC, entropy, and authorization records.",
   },
   {
     cmd: "proofsift trace --graph outputs/evidence_graph.sqlite --claim-id clm-3c76c94c3ce5",
@@ -669,6 +715,21 @@ export const integrityChecks = [
     result: "0 confirmed claims without evidence",
     status: "ok" as const,
   },
+  {
+    check: "BMC timeline contradictions",
+    result: "3 impossible constraints proven",
+    status: "ok" as const,
+  },
+  {
+    check: "MFT sequence entropy",
+    result: "1 structural timestomp anomaly",
+    status: "ok" as const,
+  },
+  {
+    check: "MCP nonce authorizations",
+    result: "16 / 16 accepted; replay rejected",
+    status: "ok" as const,
+  },
 ];
 
 // ---------------- terminal stream ----------------
@@ -695,6 +756,14 @@ export const terminalScript: { text: string; tone?: "ok" | "warn" | "err" | "inf
   { text: "  [TOOL] memory_malfind ........... PAGE_EXECUTE_READWRITE @ PID 1888", tone: "dim" },
   { text: "  [CLOCK DRIFT] evtx normalized against netscan with +120s offset", tone: "warn" },
   { text: "  [CRITIC REVIEW] mft_creation_postdates_prefetch_execution (×1.12)", tone: "warn" },
+  {
+    text: "  [BMC SOLVER] Verifying state consistency matrix... CONTRADICTION DETECTED: USN record sequence violates causal time-density bounds.",
+    tone: "err",
+  },
+  {
+    text: "  [MFT ENTROPY] Structural metadata entropy spike detected: evil.exe (1.4729 bits)",
+    tone: "warn",
+  },
   {
     text: "  [CLAIM ESCALATION] clm-3c76c94c3ce5 INFERRED → CONFIRMED-CRITICAL (0.93)",
     tone: "ok",
@@ -725,9 +794,12 @@ export const benchmark = {
   truePositives: { value: 2, total: 2, pct: 100 },
   falsePositives: { value: 0, total: 0, pct: 0 },
   hallucinationsIntercepted: 0,
-  antiForensicsFound: { value: 2, total: 2, pct: 100 },
+  antiForensicsFound: { value: 3, total: 3, pct: 100 },
   clockDrifts: { value: 1, total: 1, label: "120s Normalized" },
   spoliationBlocked: { allowed: 0, blocked: 2 },
+  bmcContradictions: { value: 3, total: 3, pct: 100 },
+  mftEntropyAnomalies: { value: 1, total: 1, pct: 100 },
+  toolAuthorizations: { accepted: 16, total: 16 },
   runtimeSeconds: 0.15,
   finalScore: 100.0,
   precision: 1.0,
@@ -747,6 +819,24 @@ export const benchmark = {
     },
     { name: "evil.exe timestomping anomaly", expected: "ANOMALY", actual: "ANOMALY", hit: true },
     { name: "EVTX +120s clock drift normalization", expected: "DRIFT", actual: "DRIFT", hit: true },
+    {
+      name: "USN/MFT causal time-density contradiction",
+      expected: "BMC",
+      actual: "BMC",
+      hit: true,
+    },
+    {
+      name: "evil.exe MFT sequence entropy spike",
+      expected: "ENTROPY",
+      actual: "ENTROPY",
+      hit: true,
+    },
+    {
+      name: "16 typed tool nonce authorizations",
+      expected: "AUTHORIZED",
+      actual: "AUTHORIZED",
+      hit: true,
+    },
     { name: "unknown.exe → 198.51.100.24", expected: "INFERRED", actual: "INFERRED", hit: true },
     { name: "svchost.exe (negative control)", expected: "CONTEXT", actual: "CONTEXT", hit: true },
   ],

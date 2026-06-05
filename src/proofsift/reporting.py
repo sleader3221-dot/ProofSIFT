@@ -23,6 +23,9 @@ def write_reports(config: CaseConfig, graph: EvidenceGraph, output_dir: Path) ->
     sequence_recommendations = [dict(row) for row in graph.sequence_recommendations()]
     bayesian_scores = [dict(row) for row in graph.bayesian_scores()]
     counterfactual_checks = [dict(row) for row in graph.counterfactual_checks()]
+    bmc_results = [dict(row) for row in graph.bmc_results()]
+    entropy_analyses = [dict(row) for row in graph.entropy_analyses()]
+    tool_authorizations = [dict(row) for row in graph.tool_authorizations()]
     integrity_seal = calculate_integrity_seal(graph)
     traces: dict[str, Any] = {}
     for claim in claims:
@@ -38,6 +41,9 @@ def write_reports(config: CaseConfig, graph: EvidenceGraph, output_dir: Path) ->
         sequence_recommendations,
         bayesian_scores,
         counterfactual_checks,
+        bmc_results,
+        entropy_analyses,
+        tool_authorizations,
         integrity_seal,
     )
     markdown.write_text(markdown_text, encoding="utf-8")
@@ -53,6 +59,9 @@ def write_reports(config: CaseConfig, graph: EvidenceGraph, output_dir: Path) ->
             sequence_recommendations,
             bayesian_scores,
             counterfactual_checks,
+            bmc_results,
+            entropy_analyses,
+            tool_authorizations,
             integrity_seal,
         ),
         encoding="utf-8",
@@ -81,6 +90,9 @@ def _markdown(
     sequence_recommendations: list[dict[str, Any]],
     bayesian_scores: list[dict[str, Any]],
     counterfactual_checks: list[dict[str, Any]],
+    bmc_results: list[dict[str, Any]],
+    entropy_analyses: list[dict[str, Any]],
+    tool_authorizations: list[dict[str, Any]],
     integrity_seal: dict[str, Any],
 ) -> str:
     lines = [
@@ -96,6 +108,9 @@ def _markdown(
         f"- Anti-forensics anomalies: `{len(anomalies)}`",
         f"- MITRE sequence recommendations: `{len(sequence_recommendations)}`",
         f"- Counterfactual checks: `{len(counterfactual_checks)}`",
+        f"- Formal BMC contradictions: `{len([row for row in bmc_results if row['status'] == 'CONTRADICTION'])}`",
+        f"- MFT entropy analyses: `{len(entropy_analyses)}`",
+        f"- Ephemeral tool authorizations: `{len(tool_authorizations)}`",
         f"- Merkle-DAG root seal: `{integrity_seal['root_seal']}`",
         "",
         "## Findings",
@@ -150,6 +165,30 @@ def _markdown(
             f"({anomaly['severity']}, multiplier `{anomaly['confidence_multiplier']}`), "
             f"evidence `{evidence}`. {details.get('interpretation', '')}"
         )
+    lines.extend(["", "## Formal Bounded Model Checking", ""])
+    if not bmc_results:
+        lines.append("No bounded timeline contradictions were detected.")
+    for result in bmc_results:
+        evidence = ", ".join(json.loads(result["evidence_json"]))
+        lines.append(
+            f"- `{result['status']}` `{result['check_name']}` on `{result['target']}` "
+            f"with timeline validity `{result['timeline_validity']:.2f}`. "
+            f"Contradiction: {result['contradiction']} Evidence: `{evidence}`."
+        )
+    lines.extend(["", "## MFT Structural Entropy", ""])
+    if not entropy_analyses:
+        lines.append("No MFT sequence entropy analysis was required.")
+    for analysis in entropy_analyses:
+        details = json.loads(analysis["details_json"])
+        signals = ", ".join(details.get("signals", [])) or "none"
+        evidence = ", ".join(json.loads(analysis["evidence_json"]))
+        lines.append(
+            f"- `{analysis['verdict']}` on `{analysis['target_path']}` "
+            f"with entropy `{analysis['entropy_bits']:.4f}` bits. "
+            f"Baseline delta/record `{analysis['baseline_delta_seconds_per_record']:.4f}s`, "
+            f"target delta/record `{analysis['target_delta_seconds_per_record']:.4f}s`. "
+            f"Signals: `{signals}`. Evidence: `{evidence}`."
+        )
     lines.extend(["", "## MITRE ATT&CK Sequence Recommendations", ""])
     if not sequence_recommendations:
         lines.append("No missing behavioral sequence links were detected.")
@@ -182,6 +221,16 @@ def _markdown(
             f"P(E|not H) `{score['likelihood_given_not_h']:.6f}`. "
             f"Signals: `{', '.join(json.loads(score['signals_json'])) or 'none'}`."
         )
+    lines.extend(["", "## Ephemeral MCP Tool Authorization", ""])
+    if not tool_authorizations:
+        lines.append("No tool authorizations were recorded.")
+    else:
+        authorized = len([row for row in tool_authorizations if row["status"] == "authorized" and row["schema_valid"]])
+        lines.append(
+            f"- `{authorized}` of `{len(tool_authorizations)}` tool executions carried one-time "
+            "HMAC-SHA256 nonce authorization envelopes."
+        )
+        lines.append("- Each authorization stores a nonce hash, payload hash, signature, status, and expiry in the evidence graph.")
     lines.extend(
         [
             "",
@@ -220,6 +269,9 @@ def _html(
     sequence_recommendations: list[dict[str, Any]],
     bayesian_scores: list[dict[str, Any]],
     counterfactual_checks: list[dict[str, Any]],
+    bmc_results: list[dict[str, Any]],
+    entropy_analyses: list[dict[str, Any]],
+    tool_authorizations: list[dict[str, Any]],
     integrity_seal: dict[str, Any],
 ) -> str:
     body = [
@@ -266,6 +318,21 @@ def _html(
             f"<code>{html.escape(anomaly['target'])}</code>: "
             f"{html.escape(details.get('interpretation', ''))}</li>"
         )
+    body.append("</ul><h2>Formal Bounded Model Checking</h2><ul>")
+    for result in bmc_results:
+        body.append(
+            f"<li><code>{html.escape(result['status'])}</code> "
+            f"{html.escape(result['check_name'])} on "
+            f"<code>{html.escape(result['target'])}</code>: "
+            f"{html.escape(result['contradiction'])}</li>"
+        )
+    body.append("</ul><h2>MFT Structural Entropy</h2><ul>")
+    for analysis in entropy_analyses:
+        body.append(
+            f"<li><code>{html.escape(analysis['verdict'])}</code> on "
+            f"<code>{html.escape(analysis['target_path'])}</code>: "
+            f"<code>{analysis['entropy_bits']:.4f}</code> bits</li>"
+        )
     body.append("</ul><h2>MITRE ATT&CK Sequence Recommendations</h2><ul>")
     for recommendation in sequence_recommendations:
         tools = ", ".join(json.loads(recommendation["recommended_tools_json"]))
@@ -288,6 +355,12 @@ def _html(
             f"<code>{score['posterior']:.4f}</code> via "
             f"<code>P(H|E)=P(E|H)*P(H)/P(E)</code></li>"
         )
+    authorized = len([row for row in tool_authorizations if row["status"] == "authorized" and row["schema_valid"]])
+    body.append("</ul><h2>Ephemeral MCP Tool Authorization</h2><ul>")
+    body.append(
+        f"<li><code>{authorized}</code> of <code>{len(tool_authorizations)}</code> "
+        "tool executions carried one-time nonce authorization envelopes.</li>"
+    )
     body.append("</ul></body></html>")
     return "\n".join(body)
 

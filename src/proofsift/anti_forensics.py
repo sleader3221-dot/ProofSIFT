@@ -45,7 +45,7 @@ class AntiForensicsDetector:
             ]
             matching_usn = [
                 artifact for artifact in usn
-                if path.lower() in json.dumps(artifact["fields"]).lower()
+                if _same_path(path, artifact["fields"].get("path", ""))
             ]
             for pf in matching_prefetch:
                 execution_time = parse_utc(pf["fields"].get("last_run_utc") or pf["fields"].get("first_run_utc"))
@@ -136,3 +136,6 @@ def _looks_executable(path: str) -> bool:
     lowered = path.lower()
     return lowered.endswith((".exe", ".dll", ".sys", ".scr", ".bat", ".cmd", ".ps1"))
 
+
+def _same_path(left: str, right: str) -> bool:
+    return left.strip().lower().replace("/", "\\") == right.strip().lower().replace("/", "\\")

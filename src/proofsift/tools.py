@@ -7,8 +7,9 @@ from pathlib import Path
 from uuid import uuid4
 
 from .audit import AuditLogger
+from .crypto_auth import EphemeralToolAuthorizer, nonce_hash
 from .graph import EvidenceGraph
-from .models import Artifact, ToolResult
+from .models import Artifact, ToolAuthorization, ToolResult
 from .security import SafePathPolicy, file_mode, sha256_file
 
 
@@ -27,6 +28,7 @@ class ToolRunner:
         self.audit = audit
         self.policy = policy
         self.indicators = indicators or {}
+        self.authorizer = EphemeralToolAuthorizer()
 
     def catalog(self) -> list[dict[str, str]]:
         return [
@@ -229,6 +231,7 @@ class ToolRunner:
 
     def _store(self, result: ToolResult) -> ToolResult:
         artifact_ids = self.graph.record_tool_result(result)
+        authorization_id = self._record_authorization(result, artifact_ids)
         self.audit.event(
             "tool",
             "tool_result",
@@ -242,10 +245,69 @@ class ToolRunner:
                 "warnings": result.warnings,
                 "error": result.error,
                 "duration_ms": result.duration_ms,
+                "tool_authorization_id": authorization_id,
                 "estimated_token_usage": estimate_tokens(json.dumps(result.summary) + json.dumps(result.warnings)),
             },
         )
         return result
+
+    def _record_authorization(self, result: ToolResult, artifact_ids: list[str]) -> str | None:
+        payload = {
+            "command_id": result.command_id,
+            "tool_name": result.tool_name,
+            "ok": result.ok,
+            "artifact_count": len(result.artifacts),
+            "artifact_ids": artifact_ids,
+            "summary": result.summary,
+            "warnings": result.warnings,
+            "error": result.error,
+            "duration_ms": result.duration_ms,
+        }
+        try:
+            envelope = self.authorizer.issue(result.tool_name, payload)
+            authorized, reason = self.authorizer.verify_and_consume(
+                result.tool_name,
+                payload,
+                envelope.public(),
+            )
+            authorization_id = self.graph.add_tool_authorization(
+                ToolAuthorization(
+                    command_id=result.command_id,
+                    tool_name=result.tool_name,
+                    nonce_hash=nonce_hash(envelope.nonce),
+                    payload_hash=envelope.payload_hash,
+                    signature=envelope.signature,
+                    status=reason if authorized else f"rejected:{reason}",
+                    schema_valid=authorized,
+                    issued_at_utc=envelope.issued_at_utc,
+                    expires_at_utc=envelope.expires_at_utc,
+                )
+            )
+            self.audit.event(
+                "tool_authorization",
+                "nonce.consumed",
+                {
+                    "authorization_id": authorization_id,
+                    "command_id": result.command_id,
+                    "tool_name": result.tool_name,
+                    "payload_hash": envelope.payload_hash,
+                    "nonce_hash": nonce_hash(envelope.nonce),
+                    "status": reason,
+                    "schema_valid": authorized,
+                },
+            )
+            return authorization_id
+        except Exception as exc:
+            self.audit.event(
+                "tool_authorization",
+                "nonce.error",
+                {
+                    "command_id": result.command_id,
+                    "tool_name": result.tool_name,
+                    "error": str(exc),
+                },
+            )
+            return None
 
     @staticmethod
     def _command_id(tool_name: str) -> str:

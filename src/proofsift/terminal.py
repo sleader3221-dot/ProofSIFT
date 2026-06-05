@@ -39,6 +39,22 @@ def counterfactual_failure(claim_id: str, missing_artifacts: list[str], action: 
     print(f"  [{timestamp()}]   -> Action: {action}", flush=True)
 
 
+def bmc_solver(contradiction: str) -> None:
+    print(
+        f"  [{timestamp()}] [BMC SOLVER] Verifying state consistency matrix... "
+        f"CONTRADICTION DETECTED: {contradiction}",
+        flush=True,
+    )
+
+
+def mft_entropy(target_path: str, entropy_bits: float, verdict: str) -> None:
+    print(
+        f"  [{timestamp()}] [MFT ENTROPY] Structural metadata entropy spike detected: "
+        f"{target_path} ({entropy_bits:.4f} bits, {verdict}).",
+        flush=True,
+    )
+
+
 def claim_escalation(claim_id: str, old_status: str, new_status: str, severity: str) -> None:
     print(f"  [{timestamp()}] [CLAIM ESCALATION] Claim {claim_id} safely upgraded from [{old_status}] to [{new_status} - {severity}].", flush=True)
 

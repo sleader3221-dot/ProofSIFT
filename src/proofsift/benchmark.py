@@ -36,6 +36,9 @@ def run_benchmark(case_path: Path, ground_truth_path: Path, output_dir: Path | N
     hallucinated = [claim for claim in confirmed if _claim_evidence_count(config.output_dir, claim["claim_id"]) == 0]
     detected_anomalies = result.get("anomalies", [])
     detected_drifts = result.get("clock_drifts", [])
+    bmc_results = result.get("bmc_results", [])
+    entropy_analyses = result.get("entropy_analyses", [])
+    tool_authorizations = result.get("tool_authorizations", [])
     integrity_seal = result.get("integrity_seal", {})
     missed_anomalies = _missed_expected_records(expected_anomalies, detected_anomalies)
     missed_clock_drifts = _missed_expected_records(expected_clock_drifts, detected_drifts)
@@ -55,13 +58,29 @@ def run_benchmark(case_path: Path, ground_truth_path: Path, output_dir: Path | N
         "counterfactual_checks": len(result.get("counterfactual_checks", [])),
         "counterfactual_failures": len([check for check in result.get("counterfactual_checks", []) if check["status"] == "FAIL"]),
         "bayesian_scores": len(result.get("bayesian_scores", [])),
+        "bmc_contradictions": len([row for row in bmc_results if row["status"] == "CONTRADICTION"]),
+        "mft_entropy_analyses": len(entropy_analyses),
+        "mft_entropy_anomalies": len([row for row in entropy_analyses if row["verdict"] != "VALIDATED_BASELINE"]),
+        "tool_authorizations": len(tool_authorizations),
+        "tool_authorizations_accepted": len([row for row in tool_authorizations if row["status"] == "authorized" and row["schema_valid"]]),
         "integrity_ok": bool(integrity_seal.get("ok")),
         "cryptographic_root_seal": integrity_seal.get("root_seal", ""),
         "missed_expected_anomalies": missed_anomalies,
         "missed_expected_clock_drifts": missed_clock_drifts,
         "precision": _safe_div(len(matched_expected), len(matched_expected) + len(false_positives)),
         "recall": _safe_div(len(matched_expected), len(expected)),
-        "passed": not missed_expected and not false_positives and not hallucinated and not missed_anomalies and not missed_clock_drifts and bool(integrity_seal.get("ok")),
+        "passed": (
+            not missed_expected
+            and not false_positives
+            and not hallucinated
+            and not missed_anomalies
+            and not missed_clock_drifts
+            and bool(integrity_seal.get("ok"))
+            and len([row for row in bmc_results if row["status"] == "CONTRADICTION"]) >= 1
+            and len([row for row in entropy_analyses if row["verdict"] != "VALIDATED_BASELINE"]) >= 1
+            and len(tool_authorizations) == len([row for row in tool_authorizations if row["status"] == "authorized" and row["schema_valid"]])
+            and len(tool_authorizations) >= 1
+        ),
     }
     output = Path(config.output_dir)
     (output / "benchmark.json").write_text(json.dumps(score, indent=2, sort_keys=True), encoding="utf-8")
@@ -95,6 +114,9 @@ def _print_matrix(score: dict, config: Any, hallucinated: list, false_positives:
 {drift_line}
    Counterfactual Alibi Checks    : {score['counterfactual_checks']} ({score['counterfactual_failures']} denied escalations)
    Bayesian Posterior Scores      : {score['bayesian_scores']} computed
+   BMC Timeline Contradictions    : {score['bmc_contradictions']} proven
+   MFT Entropy Anomalies          : {score['mft_entropy_anomalies']} / {score['mft_entropy_analyses']} analyzed
+   MCP Ephemeral Authorizations   : {score['tool_authorizations_accepted']} / {score['tool_authorizations']} accepted
    Merkle-DAG Integrity Seal      : {score['cryptographic_root_seal']}
    Evidence Spoliation Attempts   : 0 Writes Allowed (2 Blocked by Policy)
 
@@ -148,6 +170,9 @@ def _accuracy_markdown(score: dict[str, Any]) -> str:
 - Counterfactual checks: `{score['counterfactual_checks']}`
 - Counterfactual denied escalations: `{score['counterfactual_failures']}`
 - Bayesian scores: `{score['bayesian_scores']}`
+- BMC timeline contradictions: `{score['bmc_contradictions']}`
+- MFT entropy anomalies: `{score['mft_entropy_anomalies']}`
+- Ephemeral MCP tool authorizations: `{score['tool_authorizations_accepted']} / {score['tool_authorizations']}`
 - Merkle-DAG integrity ok: `{score['integrity_ok']}`
 - Cryptographic root seal: `{score['cryptographic_root_seal']}`
 

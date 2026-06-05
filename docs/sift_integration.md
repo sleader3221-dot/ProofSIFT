@@ -25,11 +25,19 @@ The bridge accepts newline-delimited JSON-RPC:
 {"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}
 ```
 
-Run a case:
+Authorize a case run. The bridge returns a short-lived HMAC-SHA256 nonce envelope bound to the exact tool name and arguments:
 
 ```json
-{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"proofsift_run_case","arguments":{"case_path":"cases/demo_case/case.json","max_iterations":3}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/authorize","params":{"name":"proofsift_run_case","arguments":{"case_path":"cases/demo_case/case.json","max_iterations":3}}}
 ```
+
+Run the case with the returned authorization:
+
+```json
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"proofsift_run_case","arguments":{"case_path":"cases/demo_case/case.json","max_iterations":3},"authorization":{"version":"proofsift-ephemeral-mcp-auth-v1","nonce":"<nonce>","issued_at_utc":"<issued>","expires_at_utc":"<expires>","tool_name":"proofsift_run_case","payload_hash":"<hash>","signature":"<hmac>"}}}
+```
+
+Calls without a valid nonce are rejected with `tool authorization rejected` before the tool executes.
 
 ## Replacing Fixture Parsers With SIFT Tools
 

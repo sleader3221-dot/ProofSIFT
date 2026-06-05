@@ -7,6 +7,10 @@ from typing import Any
 
 from .agent import SelfCorrectingInvestigator, load_case_config
 from .benchmark import run_benchmark
+from .crypto_auth import EphemeralToolAuthorizer
+
+
+_AUTHORIZER = EphemeralToolAuthorizer(ttl_seconds=30)
 
 
 def serve_stdio() -> int:
@@ -38,9 +42,20 @@ def _handle(request: dict[str, Any]) -> dict[str, Any]:
         return {"jsonrpc": "2.0", "id": request_id, "result": {"name": "proofsift", "version": "0.1.0"}}
     if method == "tools/list":
         return {"jsonrpc": "2.0", "id": request_id, "result": {"tools": _tools()}}
+    if method == "tools/authorize":
+        name = params.get("name")
+        arguments = params.get("arguments") or {}
+        if not isinstance(name, str) or not isinstance(arguments, dict):
+            return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32602, "message": "invalid authorization params"}}
+        envelope = _AUTHORIZER.issue(name, arguments)
+        return {"jsonrpc": "2.0", "id": request_id, "result": {"authorization": envelope.public()}}
     if method == "tools/call":
         name = params.get("name")
         arguments = params.get("arguments") or {}
+        authorization = params.get("authorization") or {}
+        authorized, reason = _AUTHORIZER.verify_and_consume(name, arguments, authorization)
+        if not authorized:
+            return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32001, "message": f"tool authorization rejected: {reason}"}}
         return {"jsonrpc": "2.0", "id": request_id, "result": _call(name, arguments)}
     return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32601, "message": f"unknown method: {method}"}}
 
@@ -75,4 +90,3 @@ def _call(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             output_dir=Path(arguments["output_dir"]) if arguments.get("output_dir") else None,
         )
     raise ValueError(f"unknown tool: {name}")
-

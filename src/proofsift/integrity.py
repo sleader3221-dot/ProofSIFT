@@ -194,6 +194,26 @@ def calculate_integrity_seal(graph: EvidenceGraph) -> dict[str, Any]:
             broken_parent_links.append({"record": row["check_id"], "missing_parent": row["claim_id"]})
         add(merkle_node("counterfactual_check", row["check_id"], [parent] if parent else [], dict(row)))
 
+    for row in _optional_rows(graph, "bmc_results", "result_id"):
+        evidence_ids = json.loads(row["evidence_json"] or "[]")
+        parents = [artifact_nodes[evidence_id] for evidence_id in evidence_ids if evidence_id in artifact_nodes]
+        if len(parents) != len(evidence_ids):
+            broken_parent_links.append({"record": row["result_id"], "missing_parent": "bmc_evidence"})
+        add(merkle_node("bmc_result", row["result_id"], parents, dict(row)))
+
+    for row in _optional_rows(graph, "entropy_analyses", "analysis_id"):
+        evidence_ids = json.loads(row["evidence_json"] or "[]")
+        parents = [artifact_nodes[evidence_id] for evidence_id in evidence_ids if evidence_id in artifact_nodes]
+        if len(parents) != len(evidence_ids):
+            broken_parent_links.append({"record": row["analysis_id"], "missing_parent": "entropy_evidence"})
+        add(merkle_node("entropy_analysis", row["analysis_id"], parents, dict(row)))
+
+    for row in _optional_rows(graph, "tool_authorizations", "authorization_id"):
+        parent = tool_nodes.get(row["command_id"])
+        if not parent:
+            broken_parent_links.append({"record": row["authorization_id"], "missing_parent": row["command_id"]})
+        add(merkle_node("tool_authorization", row["authorization_id"], [parent] if parent else [], dict(row)))
+
     node_ids = sorted(node.node_id for node in nodes)
     root = sha256_json({"version": MERKLE_VERSION, "node_ids": node_ids})
     counts: dict[str, int] = {}

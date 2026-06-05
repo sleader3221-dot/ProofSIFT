@@ -9,10 +9,12 @@ from .anti_forensics import AntiForensicsDetector
 from .audit import AuditLogger
 from .bayesian import BayesianScorer
 from .clock_drift import ClockDriftNormalizer, DriftSearchBoundary
+from .constraint_engine import TimelineConstraintEngine
 from .counterfactual import CounterfactualFalsifier
 from .graph import EvidenceGraph
 from .integrity import calculate_integrity_seal
 from .mitre_sequence import MitreSequenceValidator
+from .mft_entropy import MftEntropyAnalyzer
 from .models import CaseConfig, Claim, ClaimStatus, Severity
 from .reporting import write_reports
 from .security import SafePathPolicy
@@ -37,6 +39,8 @@ class SelfCorrectingInvestigator:
         self.mitre_sequence = MitreSequenceValidator(self.graph, self.audit)
         self.counterfactual = CounterfactualFalsifier(self.graph, self.audit)
         self.bayesian = BayesianScorer(self.graph, self.audit)
+        self.constraint_engine = TimelineConstraintEngine(self.graph, self.audit)
+        self.mft_entropy = MftEntropyAnalyzer(self.graph, self.audit)
         self.t = terminal
         self._start_time = 0.0
 
@@ -121,6 +125,7 @@ class SelfCorrectingInvestigator:
                 for a in anomalies:
                     self.t.critic_review(a.anomaly_type, a.confidence_multiplier)
             self._apply_anti_forensics_adjustments(anomalies, iteration=2)
+            self._run_formal_timeline_checks(iteration=2)
             self._verify_claims(iteration=2)
             self._validate_mitre_sequence(iteration=2)
             self._run_counterfactuals(iteration=2)
@@ -164,6 +169,9 @@ class SelfCorrectingInvestigator:
             "sequence_recommendations": [dict(row) for row in self.graph.sequence_recommendations()],
             "bayesian_scores": [dict(row) for row in self.graph.bayesian_scores()],
             "counterfactual_checks": [dict(row) for row in self.graph.counterfactual_checks()],
+            "bmc_results": [dict(row) for row in self.graph.bmc_results()],
+            "entropy_analyses": [dict(row) for row in self.graph.entropy_analyses()],
+            "tool_authorizations": [dict(row) for row in self.graph.tool_authorizations()],
             "integrity_seal": integrity_seal,
         }
         self.audit.event("agent", "run.end", {"case_id": self.config.case_id, "claim_count": len(result["claims"]), "report_md": reports["markdown"]})
@@ -462,6 +470,45 @@ class SelfCorrectingInvestigator:
                     "formula": "P(H|E)=P(E|H)*P(H)/P(E)",
                 },
             )
+
+    def _run_formal_timeline_checks(self, iteration: int) -> None:
+        bmc_results = self.constraint_engine.verify()
+        for result in bmc_results:
+            self.graph.add_correction(
+                iteration,
+                None,
+                {"timeline_validity": "unknown"},
+                {
+                    "timeline_validity": result.timeline_validity,
+                    "status": result.status,
+                    "contradiction": result.contradiction,
+                },
+                f"formal bounded model checker detected impossible timeline for {result.target}",
+            )
+            if self.t and hasattr(self.t, "bmc_solver"):
+                self.t.bmc_solver(result.contradiction)
+
+        entropy_results = self.mft_entropy.analyze()
+        for analysis in entropy_results:
+            if analysis.verdict == "VALIDATED_BASELINE":
+                continue
+            self.graph.add_correction(
+                iteration,
+                None,
+                {"mft_entropy": "unchecked"},
+                {
+                    "mft_entropy": analysis.entropy_bits,
+                    "verdict": analysis.verdict,
+                    "target_path": analysis.target_path,
+                },
+                f"MFT sequence entropy analyzer flagged structural timestomping signal for {analysis.target_path}",
+            )
+            if self.t and hasattr(self.t, "mft_entropy"):
+                self.t.mft_entropy(
+                    analysis.target_path,
+                    analysis.entropy_bits,
+                    analysis.verdict,
+                )
 
     def _negative_controls(self, iteration: int) -> None:
         benign_names = {name.lower() for name in self.config.indicators.get("benign_processes", ["svchost.exe"])}

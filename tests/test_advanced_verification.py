@@ -75,6 +75,9 @@ class AdvancedVerificationTest(unittest.TestCase):
         self.assertIn('"actor": "clock_drift"', log)
         self.assertIn('"actor": "anti_forensics"', log)
         self.assertIn('"actor": "mitre_sequence"', log)
+        self.assertIn('"actor": "bmc_solver"', log)
+        self.assertIn('"actor": "mft_entropy"', log)
+        self.assertIn('"actor": "tool_authorization"', log)
 
     def test_merkle_dag_integrity_root_is_verifiable(self):
         graph = EvidenceGraph(self.output / "evidence_graph.sqlite")
@@ -103,6 +106,29 @@ class AdvancedVerificationTest(unittest.TestCase):
         self.assertIn("Shimcache/AppCompatCache entry", missing)
         log = (self.output / "execution_log.jsonl").read_text(encoding="utf-8")
         self.assertIn("[COUNTERFACTUAL FAILURE] Denied escalation", log)
+
+    def test_bmc_solver_records_formal_timeline_contradiction(self):
+        rows = self.conn.execute("select * from bmc_results").fetchall()
+        self.assertGreaterEqual(len(rows), 1)
+        contradictions = "\n".join(row["contradiction"] for row in rows)
+        self.assertIn("USN record sequence violates causal time-density bounds", contradictions)
+        self.assertTrue(all(row["status"] == "CONTRADICTION" for row in rows))
+        self.assertTrue(all(row["timeline_validity"] == 0.0 for row in rows))
+
+    def test_mft_entropy_detects_structural_timestomping(self):
+        rows = self.conn.execute("select * from entropy_analyses").fetchall()
+        self.assertGreaterEqual(len(rows), 1)
+        verdicts = "\n".join(row["verdict"] for row in rows)
+        self.assertIn("ANOMALOUS_MALICIOUS_TIMESTOMPING", verdicts)
+        self.assertTrue(all(row["entropy_bits"] > 0 for row in rows))
+
+    def test_ephemeral_tool_authorizations_cover_tool_runs(self):
+        tool_runs = self.conn.execute("select count(*) as count from tool_runs").fetchone()["count"]
+        authorizations = self.conn.execute("select * from tool_authorizations").fetchall()
+        self.assertEqual(len(authorizations), tool_runs)
+        self.assertGreaterEqual(len(authorizations), 16)
+        self.assertTrue(all(row["status"] == "authorized" for row in authorizations))
+        self.assertTrue(all(row["schema_valid"] == 1 for row in authorizations))
 
 
 if __name__ == "__main__":

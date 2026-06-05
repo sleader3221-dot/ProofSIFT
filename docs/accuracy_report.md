@@ -14,12 +14,15 @@
 | **Precision** | 1.0 |
 | **Recall** | 1.0 |
 | **Confirmed Claims** | 2 |
-| **Self-Corrections** | 23 |
+| **Self-Corrections** | 31 |
 | **Clock Drifts Detected** | 1 |
-| **Anti-Forensics Anomalies Found** | 2 |
+| **Anti-Forensics Anomalies Found** | 3 |
 | **MITRE Sequence Recommendations** | 2 |
 | **Counterfactual Alibi Checks** | 8 |
 | **Bayesian Posterior Scores** | 15 |
+| **BMC Timeline Contradictions** | 3 |
+| **MFT Entropy Anomalies** | 1 |
+| **MCP Ephemeral Authorizations** | 16 / 16 accepted |
 | **Merkle-DAG Integrity** | PASSED |
 | **Execution Runtime** | ~0.15 seconds |
 
@@ -35,10 +38,13 @@
   Forensic True Positives Caught : 2 / 2  (100.0%)
    False Positive Claims Raised   : 0      (0.00%)
    Hallucinated Items Intercepted : 0     (Enforced via Critic)
-   Anti-Forensics Anomalies Found : 2 / 2  (100.0%)
+   Anti-Forensics Anomalies Found : 3 / 3  (100.0%)
   Clock-Drift Adjustments Applied: 1 / 1  (120s Normalized)
    Counterfactual Alibi Checks    : 8 (4 denied escalations)
    Bayesian Posterior Scores      : 15 computed
+   BMC Timeline Contradictions    : 3 proven
+   MFT Entropy Anomalies          : 1 / 1 analyzed
+   MCP Ephemeral Authorizations   : 16 / 16 accepted
    Merkle-DAG Integrity Seal      : sha256:<root>
    Evidence Spoliation Attempts   : 0 Writes Allowed (2 Blocked by Policy)
  SYSTEM METRICS:
@@ -110,8 +116,31 @@ The normalizer discovered the shared anchor (remote IP 203.0.113.50) across memo
 |-------------|--------|------------|----------|
 | mft_creation_postdates_prefetch_execution | C:\Users\victim\AppData\Roaming\evil.exe | 1.12x | MFT created 14:10:05Z vs Prefetch last_run 14:02:13Z (skew 472s) |
 | mft_created_after_modified | C:\Users\victim\AppData\Roaming\evil.exe | 1.08x | MFT created 14:10:05Z vs MFT modified 14:02:05Z |
+| mft_creation_postdates_usn_activity | C:\Users\victim\AppData\Roaming\evil.exe | 1.10x | MFT created 14:10:05Z vs USN file activity at 14:02:05Z |
 
-Both anomalies are consistent with timestomping — an attacker modifying the MFT creation timestamp to obscure the true file origin.
+These anomalies are consistent with timestomping — an attacker modifying filesystem metadata to obscure the true file origin.
+
+### Formal Bounded Model Checking
+
+| Constraint | Result | Evidence |
+|------------|--------|----------|
+| MFT creation must not postdate Prefetch execution beyond 300s | CONTRADICTION | Prefetch execution predates MFT creation |
+| MFT creation must not postdate Amcache first-run beyond 300s | CONTRADICTION | Amcache first-run predates MFT creation |
+| USN activity must not predate MFT creation beyond 300s | CONTRADICTION | USN record sequence violates causal time-density bounds |
+
+The BMC solver emits:
+
+```text
+[BMC SOLVER] Verifying state consistency matrix... CONTRADICTION DETECTED: USN record sequence violates causal time-density bounds.
+```
+
+### MFT Structural Entropy
+
+| Target | Verdict | Entropy |
+|--------|---------|---------|
+| C:\Users\victim\AppData\Roaming\evil.exe | ANOMALOUS_MALICIOUS_TIMESTOMPING | 1.4729 bits |
+
+The analyzer compares local MFT record-number spacing against execution and USN deltas, producing a separate structural signal for metadata manipulation.
 
 ### MITRE ATT&CK Sequence Recommendations
 
@@ -154,18 +183,22 @@ The evidence graph can be independently verified:
 proofsift verify-integrity --graph cases/demo_case/outputs/evidence_graph.sqlite
 ```
 
-The command returns one `sha256:<root>` seal over tool runs, artifact content hashes, observations, claims, signed claim-evidence relationship blocks, corrections, Bayesian scores, and counterfactual checks.
+The command returns one `sha256:<root>` seal over tool runs, artifact content hashes, observations, claims, signed claim-evidence relationship blocks, corrections, Bayesian scores, counterfactual checks, BMC results, entropy analyses, and tool authorizations.
+
+### Ephemeral MCP Tool Authorization
+
+Every typed tool execution receives a one-time HMAC-SHA256 nonce envelope. The demo benchmark records 16 accepted authorizations for 16 tool runs, and replayed nonces are rejected before execution.
 
 ---
 
 ## Self-Correction Summary
 
-The agent recorded **23 self-correction events** across 3 iterations:
+The agent recorded **31 self-correction events** across 3 iterations:
 
 | Iteration | Corrections | Description |
 |-----------|-------------|-------------|
 | 1 | 8 | 2 C2 claims downgraded to INFERRED, 2 MITRE sequence gaps detected, 2 counterfactual failures logged, and Bayesian posterior recalculations recorded |
-| 2 | 14 | 1 claim upgraded to CONFIRMED, anti-forensics context added, clock drift normalized, counterfactual checks rerun, and Bayesian posterior recalculations recorded |
+| 2 | 22 | 1 claim upgraded to CONFIRMED, anti-forensics context added, clock drift normalized, BMC contradictions recorded, MFT entropy scored, counterfactual checks rerun, and Bayesian posterior recalculations recorded |
 | 3 | 1 | Confidence adjustment carried forward |
 
 ---

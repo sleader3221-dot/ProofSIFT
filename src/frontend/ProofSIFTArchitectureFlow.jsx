@@ -87,6 +87,9 @@ const chipSets = {
     "Timestomp",
     "MITRE chain",
     "Confidence scoring",
+    "BMC solver",
+    "MFT entropy",
+    "Nonce auth",
     "Benchmark",
     "Spoliation tests",
     "JSONL traces",
@@ -471,6 +474,18 @@ const nodeCatalog = {
       badges: ["JSON-RPC", "structured errors", "no shell"],
     },
   },
+  "token-auth": {
+    type: "architecture",
+    data: {
+      label: "Ephemeral MCP Token Gate",
+      kicker: "One-Time Nonce",
+      description:
+        "Every typed tool call receives a short-lived HMAC authorization envelope before execution.",
+      icon: LockKeyhole,
+      accent: palette.red,
+      badges: ["HMAC-SHA256", "nonce consumed", "payload hash"],
+    },
+  },
   disk: {
     type: "architecture",
     data: {
@@ -564,12 +579,37 @@ const nodeCatalog = {
       badges: ["Shimcache", "Amcache", "Event 4688"],
     },
   },
+  bmc: {
+    type: "architecture",
+    data: {
+      label: "Bounded Model Checker",
+      kicker: "Timeline Satisfiability",
+      description:
+        "Checks whether MFT, USN, Prefetch, and Amcache timestamps can all be true in one causal model.",
+      icon: Braces,
+      accent: palette.red,
+      badges: ["CONTRADICTION", "0.0 validity", "causal bounds"],
+    },
+  },
+  "mft-entropy": {
+    type: "architecture",
+    data: {
+      label: "MFT Sequence Entropy",
+      kicker: "Structural Metadata",
+      description:
+        "Scores record-number gaps and timestamp density for high-entropy timestomping spikes.",
+      icon: FileSearch,
+      accent: palette.red,
+      badges: ["entry gap", "time density", "timestomp"],
+    },
+  },
   merkle: {
     type: "architecture",
     data: {
       label: "Merkle-DAG Root Seal",
       kicker: "Cryptographic Custody",
-      description: "Hashes tools, artifacts, claims, relationship blocks, and verifier outputs.",
+      description:
+        "Hashes tools, artifacts, claims, relationship blocks, nonce authorizations, and verifier outputs.",
       icon: Fingerprint,
       accent: palette.violet,
       badges: ["sha256 root", "signed links", "verify-integrity"],
@@ -792,17 +832,24 @@ const phases = [
       "Evidence-root writes are intercepted structurally",
     ],
     nodes: [
-      makeZone("prompt-zone", "prompt", 20, 70, 300, 410),
-      makeZone("guardrail-zone", "guardrail", 585, 70, 390, 410),
+      makeZone("prompt-zone", "prompt", 20, 70, 300, 500),
+      makeZone("guardrail-zone", "guardrail", 585, 70, 390, 500),
       makeNode("critic", 72, 220, 218),
       makeNode("boundary", 360, 212, 300),
-      makeNode("evidence-root", 700, 135, 240),
-      makeNode("tool-registry", 700, 315, 240),
+      makeNode("token-auth", 700, 88, 240),
+      makeNode("evidence-root", 700, 250, 240),
+      makeNode("tool-registry", 700, 412, 240),
     ],
     edges: [
       makeEdge("critic-boundary", "critic", "boundary", "red", undefined, {
         strokeWidth: 5.2,
         dashed: false,
+      }),
+      makeEdge("boundary-token-auth", "boundary", "token-auth", "red", undefined, {
+        strokeWidth: 4.2,
+        dashed: false,
+        sourceHandle: "source-right",
+        targetHandle: "target-left",
       }),
       makeEdge("boundary-root", "boundary", "evidence-root", "red", undefined, {
         strokeWidth: 4.2,
@@ -810,10 +857,14 @@ const phases = [
         sourceHandle: "source-right",
         targetHandle: "target-left",
       }),
-      makeEdge("boundary-tools", "boundary", "tool-registry", "red", undefined, {
-        strokeWidth: 4.2,
-        dashed: false,
-        sourceHandle: "source-right",
+      makeEdge("token-tools", "token-auth", "tool-registry", "teal", undefined, {
+        strokeWidth: 3.8,
+        sourceHandle: "source-bottom",
+        targetHandle: "target-top",
+      }),
+      makeEdge("root-tools", "evidence-root", "tool-registry", "teal", undefined, {
+        strokeWidth: 3.8,
+        sourceHandle: "source-bottom",
         targetHandle: "target-left",
       }),
     ],
@@ -884,21 +935,24 @@ const phases = [
     eyebrow: "Deterministic Verification",
     title: "Claims are normalized, challenged, and scored",
     summary:
-      "The graph feeds strict validators for clock drift, timestomping, counterfactual alibis, MITRE progression, and Bayesian scoring.",
+      "The graph feeds strict validators for clock drift, timestomping, bounded timeline consistency, counterfactual alibis, MITRE progression, and Bayesian scoring.",
     proof: [
       "Clock drift uses anchor events",
+      "BMC rejects impossible timelines",
       "Counterfactual gaps deny escalation",
       "Bayesian calculus computes confidence",
     ],
     nodes: [
-      makeZone("proof-zone", "proof", 20, 46, 930, 520),
-      makeNode("evidence-graph", 58, 112, 280),
-      makeNode("execution-log", 58, 350, 280),
-      makeNode("clock-drift", 390, 70, 300),
-      makeNode("anti-forensics", 390, 238, 300),
-      makeNode("mitre", 390, 406, 300),
-      makeNode("confidence", 738, 238, 250),
-      makeNode("counterfactual", 738, 418, 250),
+      makeZone("proof-zone", "proof", 20, 46, 930, 635),
+      makeNode("evidence-graph", 52, 206, 260),
+      makeNode("execution-log", 52, 430, 260),
+      makeNode("clock-drift", 360, 64, 260),
+      makeNode("anti-forensics", 360, 212, 260),
+      makeNode("bmc", 360, 360, 260),
+      makeNode("mft-entropy", 360, 508, 260),
+      makeNode("mitre", 670, 92, 248),
+      makeNode("counterfactual", 670, 286, 248),
+      makeNode("confidence", 670, 480, 248),
     ],
     edges: [
       makeEdge("graph-clock", "evidence-graph", "clock-drift", "indigo", undefined, {
@@ -913,6 +967,15 @@ const phases = [
         sourceHandle: "source-right",
         targetHandle: "target-left",
       }),
+      makeEdge("graph-bmc", "evidence-graph", "bmc", "red", undefined, {
+        sourceHandle: "source-right",
+        targetHandle: "target-left",
+      }),
+      makeEdge("graph-entropy", "evidence-graph", "mft-entropy", "red", undefined, {
+        sourceHandle: "source-bottom",
+        targetHandle: "target-left",
+        borderRadius: 42,
+      }),
       makeEdge("graph-log", "evidence-graph", "execution-log", "violet", undefined, {
         sourceHandle: "source-bottom",
         targetHandle: "target-top",
@@ -923,19 +986,29 @@ const phases = [
       }),
       makeEdge("anti-confidence", "anti-forensics", "confidence", "red", undefined, {
         sourceHandle: "source-right",
+        targetHandle: "target-top",
+        borderRadius: 42,
+      }),
+      makeEdge("bmc-confidence", "bmc", "confidence", "red", undefined, {
+        sourceHandle: "source-right",
         targetHandle: "target-left",
+      }),
+      makeEdge("entropy-confidence", "mft-entropy", "confidence", "red", undefined, {
+        sourceHandle: "source-right",
+        targetHandle: "target-bottom",
+        borderRadius: 42,
       }),
       makeEdge("mitre-confidence", "mitre", "confidence", "amber", undefined, {
-        sourceHandle: "source-right",
-        targetHandle: "target-bottom",
+        sourceHandle: "source-bottom",
+        targetHandle: "target-top",
       }),
       makeEdge("mitre-counterfactual", "mitre", "counterfactual", "amber", undefined, {
-        sourceHandle: "source-right",
-        targetHandle: "target-left",
+        sourceHandle: "source-bottom",
+        targetHandle: "target-top",
       }),
       makeEdge("counterfactual-confidence", "counterfactual", "confidence", "red", undefined, {
-        sourceHandle: "source-top",
-        targetHandle: "target-bottom",
+        sourceHandle: "source-bottom",
+        targetHandle: "target-top",
       }),
     ],
   },
