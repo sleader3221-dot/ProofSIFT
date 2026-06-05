@@ -1,0 +1,210 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-confirmed: var(--confirmed);
+  --color-confirmed-foreground: var(--confirmed-foreground);
+  --color-inferred: var(--inferred);
+  --color-inferred-foreground: var(--inferred-foreground);
+  --color-blocked: var(--blocked);
+  --color-blocked-foreground: var(--blocked-foreground);
+  --color-terminal-bg: var(--terminal-bg);
+  --color-terminal-fg: var(--terminal-fg);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+:root {
+  --radius: 0.5rem;
+  /* Cyber ops control room — slate/zinc 900 */
+  --background: oklch(0.18 0.012 250);
+  --foreground: oklch(0.96 0.005 250);
+  --card: oklch(0.22 0.014 250);
+  --card-foreground: oklch(0.96 0.005 250);
+  --popover: oklch(0.22 0.014 250);
+  --popover-foreground: oklch(0.96 0.005 250);
+  --primary: oklch(0.82 0.16 195);
+  --primary-foreground: oklch(0.15 0.01 250);
+  --secondary: oklch(0.28 0.018 250);
+  --secondary-foreground: oklch(0.96 0.005 250);
+  --muted: oklch(0.26 0.014 250);
+  --muted-foreground: oklch(0.68 0.014 250);
+  --accent: oklch(0.32 0.022 250);
+  --accent-foreground: oklch(0.96 0.005 250);
+  --destructive: oklch(0.62 0.24 25);
+  --destructive-foreground: oklch(0.98 0.005 0);
+  --border: oklch(0.32 0.018 250);
+  --input: oklch(0.3 0.016 250);
+  --ring: oklch(0.82 0.16 195);
+
+  /* Semantic forensic states */
+  --confirmed: oklch(0.82 0.16 195); /* neon teal */
+  --confirmed-foreground: oklch(0.14 0.01 250);
+  --inferred: oklch(0.82 0.16 75); /* amber */
+  --inferred-foreground: oklch(0.14 0.01 50);
+  --blocked: oklch(0.62 0.25 22); /* crimson */
+  --blocked-foreground: oklch(0.98 0.01 0);
+
+  --terminal-bg: oklch(0.12 0.01 250);
+  --terminal-fg: oklch(0.92 0.04 165);
+
+  --sidebar: oklch(0.16 0.012 250);
+  --sidebar-foreground: oklch(0.88 0.005 250);
+  --sidebar-primary: oklch(0.82 0.16 195);
+  --sidebar-primary-foreground: oklch(0.14 0.01 250);
+  --sidebar-accent: oklch(0.24 0.014 250);
+  --sidebar-accent-foreground: oklch(0.96 0.005 250);
+  --sidebar-border: oklch(0.28 0.014 250);
+  --sidebar-ring: oklch(0.82 0.16 195);
+}
+
+.dark {
+  /* same as root — app is dark-only */
+  --background: oklch(0.18 0.012 250);
+  --foreground: oklch(0.96 0.005 250);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+  }
+  body {
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      "Segoe UI",
+      Roboto,
+      sans-serif;
+    background-image:
+      radial-gradient(
+        circle at 15% 10%,
+        color-mix(in oklab, var(--confirmed) 8%, transparent),
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 85% 90%,
+        color-mix(in oklab, var(--blocked) 6%, transparent),
+        transparent 45%
+      );
+    background-attachment: fixed;
+  }
+}
+
+@layer utilities {
+  .text-confirmed {
+    color: var(--confirmed);
+  }
+  .text-inferred {
+    color: var(--inferred);
+  }
+  .text-blocked {
+    color: var(--blocked);
+  }
+  .bg-confirmed {
+    background-color: var(--confirmed);
+  }
+  .bg-inferred {
+    background-color: var(--inferred);
+  }
+  .bg-blocked {
+    background-color: var(--blocked);
+  }
+  .border-confirmed {
+    border-color: var(--confirmed);
+  }
+  .border-inferred {
+    border-color: var(--inferred);
+  }
+  .border-blocked {
+    border-color: var(--blocked);
+  }
+  .glow-confirmed {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--confirmed) 40%, transparent),
+      0 0 24px -6px color-mix(in oklab, var(--confirmed) 50%, transparent);
+  }
+  .glow-blocked {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--blocked) 50%, transparent),
+      0 0 32px -6px color-mix(in oklab, var(--blocked) 60%, transparent);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+  .scan-grid {
+    background-image:
+      linear-gradient(color-mix(in oklab, var(--confirmed) 8%, transparent) 1px, transparent 1px),
+      linear-gradient(
+        90deg,
+        color-mix(in oklab, var(--confirmed) 8%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 32px 32px;
+  }
+}
+
+@keyframes pulse-blocked {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--blocked) 60%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 8px color-mix(in oklab, var(--blocked) 0%, transparent);
+  }
+}
+.animate-pulse-blocked {
+  animation: pulse-blocked 1.4s ease-in-out infinite;
+}
+
+@keyframes blink-cursor {
+  0%,
+  50% {
+    opacity: 1;
+  }
+  51%,
+  100% {
+    opacity: 0;
+  }
+}
+.animate-blink {
+  animation: blink-cursor 1s steps(1) infinite;
+}
