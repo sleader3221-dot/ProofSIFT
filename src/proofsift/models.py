@@ -156,6 +156,72 @@ class ToolAuthorization:
 
 
 @dataclass(frozen=True)
+class KnowledgeNode:
+    entity_type: str
+    entity_key: str
+    label: str
+    risk_score: float
+    evidence_ids: list[str]
+    attributes: dict[str, Any]
+    node_id: str | None = None
+
+
+@dataclass(frozen=True)
+class KnowledgeEdge:
+    source_node_id: str
+    target_node_id: str
+    relation: str
+    weight: float
+    evidence_ids: list[str]
+    edge_id: str | None = None
+
+
+@dataclass(frozen=True)
+class GraphMetric:
+    algorithm: str
+    subject_node_id: str
+    score: float
+    rank: int
+    details: dict[str, Any]
+    metric_id: str | None = None
+
+
+@dataclass(frozen=True)
+class CapabilityCheck:
+    capability: str
+    status: str
+    provider: str
+    executable: str
+    mode: str
+    details: dict[str, Any]
+    check_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ProvenanceTrace:
+    claim_id: str
+    verdict: str
+    evidence_ids: list[str]
+    rules: list[str]
+    calculations: dict[str, Any]
+    explanation: str
+    reasoning_policy: str
+    trace_id: str | None = None
+
+
+@dataclass(frozen=True)
+class RemediationPlaybook:
+    claim_id: str
+    title: str
+    execution_mode: str
+    requires_approval: bool
+    steps: list[dict[str, Any]]
+    validation: list[str]
+    rollback: list[str]
+    playbook_id: str | None = None
+
+
+@dataclass(frozen=True)
 class ToolResult:
     command_id: str
     tool_name: str

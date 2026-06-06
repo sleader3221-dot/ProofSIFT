@@ -21,6 +21,12 @@ from .models import (
     Severity,
     ToolAuthorization,
     ToolResult,
+    CapabilityCheck,
+    GraphMetric,
+    KnowledgeEdge,
+    KnowledgeNode,
+    ProvenanceTrace,
+    RemediationPlaybook,
 )
 from .time_utils import TIMESTAMP_FIELDS, format_utc, parse_utc
 
@@ -180,10 +186,69 @@ class EvidenceGraph:
                 issued_at_utc text not null,
                 expires_at_utc text not null
             );
+            create table if not exists knowledge_nodes (
+                node_id text primary key,
+                entity_type text not null,
+                entity_key text not null,
+                label text not null,
+                risk_score real not null,
+                evidence_json text not null,
+                attributes_json text not null,
+                unique(entity_type, entity_key)
+            );
+            create table if not exists knowledge_edges (
+                edge_id text primary key,
+                source_node_id text not null,
+                target_node_id text not null,
+                relation text not null,
+                weight real not null,
+                evidence_json text not null
+            );
+            create table if not exists graph_metrics (
+                metric_id text primary key,
+                algorithm text not null,
+                subject_node_id text not null,
+                score real not null,
+                rank integer not null,
+                details_json text not null
+            );
+            create table if not exists capability_checks (
+                check_id text primary key,
+                capability text not null,
+                status text not null,
+                provider text not null,
+                executable text not null,
+                mode text not null,
+                details_json text not null
+            );
+            create table if not exists provenance_traces (
+                trace_id text primary key,
+                claim_id text not null,
+                verdict text not null,
+                evidence_json text not null,
+                rules_json text not null,
+                calculations_json text not null,
+                explanation text not null,
+                reasoning_policy text not null
+            );
+            create table if not exists remediation_playbooks (
+                playbook_id text primary key,
+                claim_id text not null,
+                title text not null,
+                execution_mode text not null,
+                requires_approval integer not null,
+                steps_json text not null,
+                validation_json text not null,
+                rollback_json text not null
+            );
             create index if not exists idx_observations_source_normalized
                 on observations(source, normalized_utc);
             create index if not exists idx_observations_artifact
                 on observations(artifact_id);
+            create index if not exists idx_knowledge_edges_source
+                on knowledge_edges(source_node_id);
+            create index if not exists idx_provenance_claim
+                on provenance_traces(claim_id);
             """
         )
         self._migrate_schema()
@@ -449,6 +514,115 @@ class EvidenceGraph:
         self.conn.commit()
         return authorization_id
 
+    def add_knowledge_node(self, node: KnowledgeNode) -> str:
+        existing = self.conn.execute(
+            "select node_id from knowledge_nodes where entity_type = ? and entity_key = ?",
+            (node.entity_type, node.entity_key),
+        ).fetchone()
+        node_id = node.node_id or (existing["node_id"] if existing else f"kn-{uuid4().hex[:12]}")
+        self.conn.execute(
+            """
+            insert or replace into knowledge_nodes
+            values (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                node_id,
+                node.entity_type,
+                node.entity_key,
+                node.label,
+                node.risk_score,
+                json.dumps(node.evidence_ids, sort_keys=True),
+                json.dumps(node.attributes, sort_keys=True),
+            ),
+        )
+        self.conn.commit()
+        return node_id
+
+    def add_knowledge_edge(self, edge: KnowledgeEdge) -> str:
+        edge_id = edge.edge_id or f"ke-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into knowledge_edges values (?, ?, ?, ?, ?, ?)",
+            (
+                edge_id,
+                edge.source_node_id,
+                edge.target_node_id,
+                edge.relation,
+                edge.weight,
+                json.dumps(edge.evidence_ids, sort_keys=True),
+            ),
+        )
+        self.conn.commit()
+        return edge_id
+
+    def add_graph_metric(self, metric: GraphMetric) -> str:
+        metric_id = metric.metric_id or f"metric-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into graph_metrics values (?, ?, ?, ?, ?, ?)",
+            (
+                metric_id,
+                metric.algorithm,
+                metric.subject_node_id,
+                metric.score,
+                metric.rank,
+                json.dumps(metric.details, sort_keys=True),
+            ),
+        )
+        self.conn.commit()
+        return metric_id
+
+    def add_capability_check(self, check: CapabilityCheck) -> str:
+        check_id = check.check_id or f"cap-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into capability_checks values (?, ?, ?, ?, ?, ?, ?)",
+            (
+                check_id,
+                check.capability,
+                check.status,
+                check.provider,
+                check.executable,
+                check.mode,
+                json.dumps(check.details, sort_keys=True),
+            ),
+        )
+        self.conn.commit()
+        return check_id
+
+    def add_provenance_trace(self, trace: ProvenanceTrace) -> str:
+        trace_id = trace.trace_id or f"prov-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into provenance_traces values (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                trace_id,
+                trace.claim_id,
+                trace.verdict,
+                json.dumps(trace.evidence_ids, sort_keys=True),
+                json.dumps(trace.rules, sort_keys=True),
+                json.dumps(trace.calculations, sort_keys=True),
+                trace.explanation,
+                trace.reasoning_policy,
+            ),
+        )
+        self.conn.commit()
+        return trace_id
+
+    def add_remediation_playbook(self, playbook: RemediationPlaybook) -> str:
+        playbook_id = playbook.playbook_id or f"play-{uuid4().hex[:12]}"
+        self.conn.execute(
+            "insert or replace into remediation_playbooks values (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                playbook_id,
+                playbook.claim_id,
+                playbook.title,
+                playbook.execution_mode,
+                1 if playbook.requires_approval else 0,
+                json.dumps(playbook.steps, sort_keys=True),
+                json.dumps(playbook.validation, sort_keys=True),
+                json.dumps(playbook.rollback, sort_keys=True),
+            ),
+        )
+        self.conn.commit()
+        return playbook_id
+
     def artifacts(self, kind: str | None = None) -> list[sqlite3.Row]:
         if kind:
             return list(self.conn.execute("select * from artifacts where kind = ?", (kind,)))
@@ -532,6 +706,24 @@ class EvidenceGraph:
     def tool_authorizations(self) -> list[sqlite3.Row]:
         return list(self.conn.execute("select * from tool_authorizations order by authorization_id"))
 
+    def knowledge_nodes(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from knowledge_nodes order by node_id"))
+
+    def knowledge_edges(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from knowledge_edges order by edge_id"))
+
+    def graph_metrics(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from graph_metrics order by rank, metric_id"))
+
+    def capability_checks(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from capability_checks order by capability"))
+
+    def provenance_traces(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from provenance_traces order by claim_id"))
+
+    def remediation_playbooks(self) -> list[sqlite3.Row]:
+        return list(self.conn.execute("select * from remediation_playbooks order by claim_id"))
+
     def normalized_observations_between(
         self,
         start_utc: str,
@@ -584,6 +776,18 @@ class EvidenceGraph:
                     "fields": json.loads(row["fields_json"]),
                 }
                 for row in evidence_rows
+            ],
+            "provenance": [
+                {
+                    **dict(row),
+                    "evidence_ids": json.loads(row["evidence_json"]),
+                    "rules": json.loads(row["rules_json"]),
+                    "calculations": json.loads(row["calculations_json"]),
+                }
+                for row in self.conn.execute(
+                    "select * from provenance_traces where claim_id = ? order by trace_id",
+                    (claim_id,),
+                )
             ],
         }
 

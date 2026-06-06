@@ -26,6 +26,12 @@ def write_reports(config: CaseConfig, graph: EvidenceGraph, output_dir: Path) ->
     bmc_results = [dict(row) for row in graph.bmc_results()]
     entropy_analyses = [dict(row) for row in graph.entropy_analyses()]
     tool_authorizations = [dict(row) for row in graph.tool_authorizations()]
+    knowledge_nodes = [dict(row) for row in graph.knowledge_nodes()]
+    knowledge_edges = [dict(row) for row in graph.knowledge_edges()]
+    graph_metrics = [dict(row) for row in graph.graph_metrics()]
+    capability_checks = [dict(row) for row in graph.capability_checks()]
+    provenance_traces = [dict(row) for row in graph.provenance_traces()]
+    remediation_playbooks = [dict(row) for row in graph.remediation_playbooks()]
     integrity_seal = calculate_integrity_seal(graph)
     traces: dict[str, Any] = {}
     for claim in claims:
@@ -44,6 +50,12 @@ def write_reports(config: CaseConfig, graph: EvidenceGraph, output_dir: Path) ->
         bmc_results,
         entropy_analyses,
         tool_authorizations,
+        knowledge_nodes,
+        knowledge_edges,
+        graph_metrics,
+        capability_checks,
+        provenance_traces,
+        remediation_playbooks,
         integrity_seal,
     )
     markdown.write_text(markdown_text, encoding="utf-8")
@@ -62,6 +74,12 @@ def write_reports(config: CaseConfig, graph: EvidenceGraph, output_dir: Path) ->
             bmc_results,
             entropy_analyses,
             tool_authorizations,
+            knowledge_nodes,
+            knowledge_edges,
+            graph_metrics,
+            capability_checks,
+            provenance_traces,
+            remediation_playbooks,
             integrity_seal,
         ),
         encoding="utf-8",
@@ -93,6 +111,12 @@ def _markdown(
     bmc_results: list[dict[str, Any]],
     entropy_analyses: list[dict[str, Any]],
     tool_authorizations: list[dict[str, Any]],
+    knowledge_nodes: list[dict[str, Any]],
+    knowledge_edges: list[dict[str, Any]],
+    graph_metrics: list[dict[str, Any]],
+    capability_checks: list[dict[str, Any]],
+    provenance_traces: list[dict[str, Any]],
+    remediation_playbooks: list[dict[str, Any]],
     integrity_seal: dict[str, Any],
 ) -> str:
     lines = [
@@ -111,6 +135,9 @@ def _markdown(
         f"- Formal BMC contradictions: `{len([row for row in bmc_results if row['status'] == 'CONTRADICTION'])}`",
         f"- MFT entropy analyses: `{len(entropy_analyses)}`",
         f"- Ephemeral tool authorizations: `{len(tool_authorizations)}`",
+        f"- Knowledge graph: `{len(knowledge_nodes)}` nodes / `{len(knowledge_edges)}` edges",
+        f"- Explainable provenance traces: `{len(provenance_traces)}`",
+        f"- Review-only remediation playbooks: `{len(remediation_playbooks)}`",
         f"- Merkle-DAG root seal: `{integrity_seal['root_seal']}`",
         "",
         "## Findings",
@@ -169,11 +196,14 @@ def _markdown(
     if not bmc_results:
         lines.append("No bounded timeline contradictions were detected.")
     for result in bmc_results:
+        details = json.loads(result["details_json"])
         evidence = ", ".join(json.loads(result["evidence_json"]))
         lines.append(
             f"- `{result['status']}` `{result['check_name']}` on `{result['target']}` "
             f"with timeline validity `{result['timeline_validity']:.2f}`. "
-            f"Contradiction: {result['contradiction']} Evidence: `{evidence}`."
+            f"Contradiction: {result['contradiction']} Evidence: `{evidence}`. "
+            f"Solver: `{details.get('solver', 'unknown')}` / `{details.get('solver_status', 'unknown')}`; "
+            f"unsat core: `{', '.join(details.get('unsat_core', []))}`."
         )
     lines.extend(["", "## MFT Structural Entropy", ""])
     if not entropy_analyses:
@@ -231,6 +261,52 @@ def _markdown(
             "HMAC-SHA256 nonce authorization envelopes."
         )
         lines.append("- Each authorization stores a nonce hash, payload hash, signature, status, and expiry in the evidence graph.")
+    lines.extend(["", "## Attack Knowledge Graph", ""])
+    if not graph_metrics:
+        lines.append("No graph analytics were calculated.")
+    else:
+        top = min(graph_metrics, key=lambda row: row["rank"])
+        node = next(
+            (row for row in knowledge_nodes if row["node_id"] == top["subject_node_id"]),
+            None,
+        )
+        details = json.loads(top["details_json"])
+        lines.append(
+            f"- NetworkX PageRank center of gravity: `{node['label'] if node else top['subject_node_id']}` "
+            f"with score `{top['score']:.8f}` and blast radius `{details.get('blast_radius_nodes', 0)}` nodes."
+        )
+        lines.append(
+            f"- Typed graph contains `{len(knowledge_nodes)}` entity nodes and "
+            f"`{len(knowledge_edges)}` evidence relationships."
+        )
+    lines.extend(["", "## Advanced Collector Capabilities", ""])
+    for check in capability_checks:
+        details = json.loads(check["details_json"])
+        lines.append(
+            f"- `{check['capability']}`: `{check['status']}` in `{check['mode']}` mode. "
+            f"{details.get('reason', '')}"
+        )
+    lines.extend(["", "## Explainable Provenance", ""])
+    lines.append(
+        "ProofSIFT stores evidence IDs, verifier rules, and calculations. It does not store or "
+        "claim to expose private model chain-of-thought or hidden prompts."
+    )
+    for trace in provenance_traces:
+        calculations = json.loads(trace["calculations_json"])
+        lines.append(
+            f"- Claim `{trace['claim_id']}`: {trace['explanation']} "
+            f"Artifact kinds: `{', '.join(calculations.get('independent_artifact_kinds', [])) or 'none'}`."
+        )
+    lines.extend(["", "## Approval-Gated Remediation", ""])
+    if not remediation_playbooks:
+        lines.append("No confirmed finding required a remediation playbook.")
+    for playbook in remediation_playbooks:
+        steps = json.loads(playbook["steps_json"])
+        lines.append(
+            f"- `{playbook['playbook_id']}` for `{playbook['claim_id']}` is "
+            f"`{playbook['execution_mode']}` with analyst approval required. "
+            f"Generated steps: `{len(steps)}`. No command was executed by ProofSIFT."
+        )
     lines.extend(
         [
             "",
@@ -244,6 +320,7 @@ def _markdown(
             "- The spoliation probe verified that writes into the evidence root are blocked.",
             "- Report, graph, and logs are written only under the configured output directory.",
             "- Re-verify with: `proofsift verify-integrity --graph outputs/evidence_graph.sqlite`.",
+            "- Knowledge nodes, graph edges, PageRank metrics, provenance traces, capability checks, and remediation playbooks are included in the Merkle seal.",
             "",
             "## Reproducibility",
             "",
@@ -272,6 +349,12 @@ def _html(
     bmc_results: list[dict[str, Any]],
     entropy_analyses: list[dict[str, Any]],
     tool_authorizations: list[dict[str, Any]],
+    knowledge_nodes: list[dict[str, Any]],
+    knowledge_edges: list[dict[str, Any]],
+    graph_metrics: list[dict[str, Any]],
+    capability_checks: list[dict[str, Any]],
+    provenance_traces: list[dict[str, Any]],
+    remediation_playbooks: list[dict[str, Any]],
     integrity_seal: dict[str, Any],
 ) -> str:
     body = [
@@ -361,6 +444,23 @@ def _html(
         f"<li><code>{authorized}</code> of <code>{len(tool_authorizations)}</code> "
         "tool executions carried one-time nonce authorization envelopes.</li>"
     )
+    body.append("</ul><h2>Neuro-Symbolic and Graph Verification</h2><ul>")
+    body.append(
+        f"<li>Z3 proved <code>{len(bmc_results)}</code> timeline contradictions; "
+        f"NetworkX analyzed <code>{len(knowledge_nodes)}</code> nodes and "
+        f"<code>{len(knowledge_edges)}</code> edges.</li>"
+    )
+    body.append("</ul><h2>Explainability and Response</h2><ul>")
+    body.append(
+        f"<li><code>{len(provenance_traces)}</code> evidence-and-rule provenance traces and "
+        f"<code>{len(remediation_playbooks)}</code> generate-only, approval-gated playbooks.</li>"
+    )
+    for check in capability_checks:
+        body.append(
+            f"<li>{html.escape(check['capability'])}: "
+            f"<code>{html.escape(check['status'])}</code> "
+            f"({html.escape(check['mode'])})</li>"
+        )
     body.append("</ul></body></html>")
     return "\n".join(body)
 

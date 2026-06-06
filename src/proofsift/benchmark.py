@@ -39,6 +39,10 @@ def run_benchmark(case_path: Path, ground_truth_path: Path, output_dir: Path | N
     bmc_results = result.get("bmc_results", [])
     entropy_analyses = result.get("entropy_analyses", [])
     tool_authorizations = result.get("tool_authorizations", [])
+    graph_metrics = result.get("graph_metrics", [])
+    capability_checks = result.get("capability_checks", [])
+    provenance_traces = result.get("provenance_traces", [])
+    remediation_playbooks = result.get("remediation_playbooks", [])
     integrity_seal = result.get("integrity_seal", {})
     missed_anomalies = _missed_expected_records(expected_anomalies, detected_anomalies)
     missed_clock_drifts = _missed_expected_records(expected_clock_drifts, detected_drifts)
@@ -63,6 +67,19 @@ def run_benchmark(case_path: Path, ground_truth_path: Path, output_dir: Path | N
         "mft_entropy_anomalies": len([row for row in entropy_analyses if row["verdict"] != "VALIDATED_BASELINE"]),
         "tool_authorizations": len(tool_authorizations),
         "tool_authorizations_accepted": len([row for row in tool_authorizations if row["status"] == "authorized" and row["schema_valid"]]),
+        "z3_unsat_proofs": len(
+            [
+                row
+                for row in bmc_results
+                if row["status"] == "CONTRADICTION"
+                and json.loads(row["details_json"]).get("solver_status") == "unsat"
+                and str(json.loads(row["details_json"]).get("solver", "")).startswith("Z3 ")
+            ]
+        ),
+        "knowledge_graph_metrics": len(graph_metrics),
+        "capability_checks": len(capability_checks),
+        "provenance_traces": len(provenance_traces),
+        "remediation_playbooks": len(remediation_playbooks),
         "integrity_ok": bool(integrity_seal.get("ok")),
         "cryptographic_root_seal": integrity_seal.get("root_seal", ""),
         "missed_expected_anomalies": missed_anomalies,
@@ -80,6 +97,20 @@ def run_benchmark(case_path: Path, ground_truth_path: Path, output_dir: Path | N
             and len([row for row in entropy_analyses if row["verdict"] != "VALIDATED_BASELINE"]) >= 1
             and len(tool_authorizations) == len([row for row in tool_authorizations if row["status"] == "authorized" and row["schema_valid"]])
             and len(tool_authorizations) >= 1
+            and len(graph_metrics) >= 1
+            and len(capability_checks) == 2
+            and len(provenance_traces) == len(claims)
+            and len(remediation_playbooks) >= 1
+            and all(row["execution_mode"] == "generate_only" for row in remediation_playbooks)
+            and all(row["requires_approval"] for row in remediation_playbooks)
+            and len(
+                [
+                    row
+                    for row in bmc_results
+                    if json.loads(row["details_json"]).get("solver_status") == "unsat"
+                    and str(json.loads(row["details_json"]).get("solver", "")).startswith("Z3 ")
+                ]
+            ) >= 1
         ),
     }
     output = Path(config.output_dir)
@@ -117,6 +148,10 @@ def _print_matrix(score: dict, config: Any, hallucinated: list, false_positives:
    BMC Timeline Contradictions    : {score['bmc_contradictions']} proven
    MFT Entropy Anomalies          : {score['mft_entropy_anomalies']} / {score['mft_entropy_analyses']} analyzed
    MCP Ephemeral Authorizations   : {score['tool_authorizations_accepted']} / {score['tool_authorizations']} accepted
+   Z3 Unsatisfiable Proofs         : {score['z3_unsat_proofs']} reproducible proofs
+   Knowledge Graph Metrics         : {score['knowledge_graph_metrics']} PageRank records
+   Explainable Provenance Traces   : {score['provenance_traces']} evidence-and-rule traces
+   Approval-Gated Playbooks        : {score['remediation_playbooks']} generated, 0 executed
    Merkle-DAG Integrity Seal      : {score['cryptographic_root_seal']}
    Evidence Spoliation Attempts   : 0 Writes Allowed (2 Blocked by Policy)
 
@@ -173,6 +208,11 @@ def _accuracy_markdown(score: dict[str, Any]) -> str:
 - BMC timeline contradictions: `{score['bmc_contradictions']}`
 - MFT entropy anomalies: `{score['mft_entropy_anomalies']}`
 - Ephemeral MCP tool authorizations: `{score['tool_authorizations_accepted']} / {score['tool_authorizations']}`
+- Z3 unsatisfiable proofs: `{score['z3_unsat_proofs']}`
+- NetworkX graph metrics: `{score['knowledge_graph_metrics']}`
+- Collector capability checks: `{score['capability_checks']}`
+- Explainable provenance traces: `{score['provenance_traces']}`
+- Generate-only remediation playbooks: `{score['remediation_playbooks']}`
 - Merkle-DAG integrity ok: `{score['integrity_ok']}`
 - Cryptographic root seal: `{score['cryptographic_root_seal']}`
 

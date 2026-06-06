@@ -9,6 +9,7 @@ import {
   clockDriftDetail,
   antiForensicsAnomalies,
   antiForensicsThresholds,
+  advancedCapabilities,
 } from "@/lib/proofsift-data";
 import { ArrowRight, FileCode, Database, FileText, FileJson, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,29 @@ function ArchitecturePage() {
       </div>
 
       <ArchitectureDiagramPanel />
+
+      <Panel
+        title="neuro-symbolic and response capabilities"
+        subtitle="Runtime-backed integrations with explicit safety modes"
+        accent="confirmed"
+      >
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          {advancedCapabilities.map((capability) => (
+            <div
+              key={capability.name}
+              className="min-h-28 rounded-md border border-border bg-background/40 p-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="text-sm font-semibold text-foreground">{capability.name}</div>
+                <span className="shrink-0 rounded border border-confirmed/40 bg-confirmed/10 px-1.5 py-0.5 font-mono text-[9px] uppercase text-confirmed">
+                  {capability.status}
+                </span>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">{capability.proof}</p>
+            </div>
+          ))}
+        </div>
+      </Panel>
 
       <Panel
         title="pipeline phases"

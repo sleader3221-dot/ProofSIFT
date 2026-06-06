@@ -214,6 +214,61 @@ def calculate_integrity_seal(graph: EvidenceGraph) -> dict[str, Any]:
             broken_parent_links.append({"record": row["authorization_id"], "missing_parent": row["command_id"]})
         add(merkle_node("tool_authorization", row["authorization_id"], [parent] if parent else [], dict(row)))
 
+    knowledge_nodes: dict[str, str] = {}
+    for row in _optional_rows(graph, "knowledge_nodes", "node_id"):
+        evidence_ids = json.loads(row["evidence_json"] or "[]")
+        parents = [artifact_nodes[evidence_id] for evidence_id in evidence_ids if evidence_id in artifact_nodes]
+        if len(parents) != len(evidence_ids):
+            broken_parent_links.append({"record": row["node_id"], "missing_parent": "knowledge_node_evidence"})
+        node = merkle_node("knowledge_node", row["node_id"], parents, dict(row))
+        knowledge_nodes[row["node_id"]] = node.node_id
+        add(node)
+
+    for row in _optional_rows(graph, "knowledge_edges", "edge_id"):
+        parents = [
+            parent
+            for parent in [
+                knowledge_nodes.get(row["source_node_id"]),
+                knowledge_nodes.get(row["target_node_id"]),
+            ]
+            if parent
+        ]
+        if len(parents) != 2:
+            broken_parent_links.append({"record": row["edge_id"], "missing_parent": "knowledge_edge_node"})
+        add(merkle_node("knowledge_edge", row["edge_id"], parents, dict(row)))
+        relationship_count += 1
+
+    for row in _optional_rows(graph, "graph_metrics", "metric_id"):
+        parent = knowledge_nodes.get(row["subject_node_id"])
+        if not parent:
+            broken_parent_links.append({"record": row["metric_id"], "missing_parent": row["subject_node_id"]})
+        add(merkle_node("graph_metric", row["metric_id"], [parent] if parent else [], dict(row)))
+
+    for row in _optional_rows(graph, "capability_checks", "check_id"):
+        add(merkle_node("capability_check", row["check_id"], [], dict(row)))
+
+    for row in _optional_rows(graph, "provenance_traces", "trace_id"):
+        parent_ids = []
+        claim_parent = claim_nodes.get(row["claim_id"])
+        if claim_parent:
+            parent_ids.append(claim_parent)
+        else:
+            broken_parent_links.append({"record": row["trace_id"], "missing_parent": row["claim_id"]})
+        evidence_ids = json.loads(row["evidence_json"] or "[]")
+        for evidence_id in evidence_ids:
+            parent = artifact_nodes.get(evidence_id)
+            if parent:
+                parent_ids.append(parent)
+            else:
+                broken_parent_links.append({"record": row["trace_id"], "missing_parent": evidence_id})
+        add(merkle_node("provenance_trace", row["trace_id"], parent_ids, dict(row)))
+
+    for row in _optional_rows(graph, "remediation_playbooks", "playbook_id"):
+        parent = claim_nodes.get(row["claim_id"])
+        if not parent:
+            broken_parent_links.append({"record": row["playbook_id"], "missing_parent": row["claim_id"]})
+        add(merkle_node("remediation_playbook", row["playbook_id"], [parent] if parent else [], dict(row)))
+
     node_ids = sorted(node.node_id for node in nodes)
     root = sha256_json({"version": MERKLE_VERSION, "node_ids": node_ids})
     counts: dict[str, int] = {}

@@ -242,7 +242,9 @@ function ForceGraph({ onSelect }: { onSelect: (node: EvidenceNode) => void }) {
     });
 
     onSelect(nodes[0]);
-    return () => simulation.stop();
+    return () => {
+      simulation.stop();
+    };
   }, [links, nodes, onSelect]);
 
   return (

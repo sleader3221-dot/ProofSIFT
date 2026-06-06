@@ -16,8 +16,13 @@
 - BMC timeline contradictions: `3`
 - MFT entropy anomalies: `1`
 - Ephemeral MCP tool authorizations: `16 / 16`
+- Z3 unsatisfiable proofs: `3`
+- NetworkX graph metrics: `34`
+- Collector capability checks: `2`
+- Explainable provenance traces: `6`
+- Generate-only remediation playbooks: `2`
 - Merkle-DAG integrity ok: `True`
-- Cryptographic root seal: `sha256:3ac7d3e11efd441a3cb96b1e0b3e77ff07cacba5fceb332d30aff087fdaf172e`
+- Cryptographic root seal: `sha256:19bfc734783dc4ffa43f1cceeb3fe079e1388dde4ef9a372b9f37598878e5045`
 
 ## Expected Findings Matched
 
@@ -28,14 +33,14 @@
       "contains": "evil.exe communicated with known C2 indicator 203.0.113.50",
       "why": "Memory network data, process data, prefetch, amcache, MFT, EVTX, USN, and keyword scan all corroborate the executable."
     },
-    "claim_id": "clm-65ec35afbefb"
+    "claim_id": "clm-a3e20d29ed1a"
   },
   {
     "expected": {
       "contains": "evil.exe established user-level persistence",
       "why": "Autorun registry artifact points to the same evil.exe path corroborated by execution artifacts."
     },
-    "claim_id": "clm-7034870b772f"
+    "claim_id": "clm-2d40f3d29d12"
   }
 ]
 ```

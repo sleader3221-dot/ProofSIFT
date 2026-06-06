@@ -90,6 +90,12 @@ const chipSets = {
     "BMC solver",
     "MFT entropy",
     "Nonce auth",
+    "Z3 unsat proofs",
+    "NetworkX PageRank",
+    "Ghidra capability",
+    "eBPF import",
+    "XAI provenance",
+    "Approval playbooks",
     "Benchmark",
     "Spoliation tests",
     "JSONL traces",
@@ -582,13 +588,73 @@ const nodeCatalog = {
   bmc: {
     type: "architecture",
     data: {
-      label: "Bounded Model Checker",
-      kicker: "Timeline Satisfiability",
+      label: "Z3 Theorem Prover",
+      kicker: "Neuro-Symbolic Satisfiability",
       description:
-        "Checks whether MFT, USN, Prefetch, and Amcache timestamps can all be true in one causal model.",
+        "Encodes observed epochs and causal rules as SMT constraints, then records reproducible unsat cores.",
       icon: Braces,
       accent: palette.red,
-      badges: ["CONTRADICTION", "0.0 validity", "causal bounds"],
+      badges: ["Z3 4.x", "UNSAT core", "SMT-LIB proof"],
+    },
+  },
+  ghidra: {
+    type: "architecture",
+    data: {
+      label: "Ghidra Headless Adapter",
+      kicker: "Optional Reverse Engineering",
+      description:
+        "Detects analyzeHeadless and exposes an explicit opt-in path with all projects confined to outputs/.",
+      icon: FileSearch,
+      accent: palette.teal,
+      badges: ["capability-gated", "no auto-run", "output scoped"],
+    },
+  },
+  ebpf: {
+    type: "architecture",
+    data: {
+      label: "eBPF Telemetry Import",
+      kicker: "Optional Live Sensor",
+      description:
+        "Imports pre-collected Linux kernel telemetry without loading kernel programs from the agent.",
+      icon: Activity,
+      accent: palette.teal,
+      badges: ["Linux bpftool", "read-only import", "graceful fallback"],
+    },
+  },
+  "knowledge-graph": {
+    type: "architecture",
+    data: {
+      label: "Attack Knowledge Graph",
+      kicker: "NetworkX PageRank",
+      description:
+        "Maps processes, files, IPs, registry keys, and claims to rank attack centers and blast radius.",
+      icon: Network,
+      accent: palette.indigo,
+      badges: ["34 metrics", "center of gravity", "blast radius"],
+    },
+  },
+  provenance: {
+    type: "architecture",
+    data: {
+      label: "Explainable Provenance",
+      kicker: "Evidence + Rules + Calculations",
+      description:
+        "Shows durable evidence IDs, validation rules, Bayesian math, and verifier outcomes without exposing hidden chain-of-thought.",
+      icon: GitBranch,
+      accent: palette.violet,
+      badges: ["6 claim traces", "no hidden prompts", "judge-readable"],
+    },
+  },
+  remediation: {
+    type: "architecture",
+    data: {
+      label: "Remediation Orchestrator",
+      kicker: "Human Approval Required",
+      description:
+        "Generates scoped containment, validation, and rollback steps; ProofSIFT never executes them.",
+      icon: ShieldCheck,
+      accent: palette.green,
+      badges: ["generate-only", "WhatIf", "0 auto-executed"],
     },
   },
   "mft-entropy": {
@@ -929,8 +995,51 @@ const phases = [
     ],
   },
   {
-    id: "verification",
+    id: "advanced-senses",
     number: "04",
+    tone: "teal",
+    eyebrow: "Advanced Senses",
+    title: "Optional native collectors fail closed",
+    summary:
+      "Ghidra and eBPF integrations are capability-detected, explicitly scoped, and never silently simulated when the host lacks them.",
+    proof: [
+      "Ghidra requires explicit analyst opt-in",
+      "eBPF imports telemetry without loading programs",
+      "Unavailable platforms are logged, not hidden",
+    ],
+    nodes: [
+      makeZone("guardrail-zone", "guardrail", 20, 46, 930, 520),
+      makeNode("boundary", 52, 218, 270),
+      makeNode("tool-registry", 360, 218, 244),
+      makeNode("ghidra", 654, 88, 244),
+      makeNode("ebpf", 654, 350, 244),
+      makeNode("evidence-graph", 360, 418, 244),
+    ],
+    edges: [
+      makeEdge("boundary-tools", "boundary", "tool-registry", "red", undefined, {
+        strokeWidth: 4.2,
+      }),
+      makeEdge("tools-ghidra", "tool-registry", "ghidra", "teal", undefined, {
+        sourceHandle: "source-top",
+        targetHandle: "target-left",
+      }),
+      makeEdge("tools-ebpf", "tool-registry", "ebpf", "teal", undefined, {
+        sourceHandle: "source-bottom",
+        targetHandle: "target-left",
+      }),
+      makeEdge("ghidra-graph", "ghidra", "evidence-graph", "teal", undefined, {
+        sourceHandle: "source-left",
+        targetHandle: "target-right",
+      }),
+      makeEdge("ebpf-graph", "ebpf", "evidence-graph", "teal", undefined, {
+        sourceHandle: "source-left",
+        targetHandle: "target-right",
+      }),
+    ],
+  },
+  {
+    id: "verification",
+    number: "05",
     tone: "indigo",
     eyebrow: "Deterministic Verification",
     title: "Claims are normalized, challenged, and scored",
@@ -938,7 +1047,7 @@ const phases = [
       "The graph feeds strict validators for clock drift, timestomping, bounded timeline consistency, counterfactual alibis, MITRE progression, and Bayesian scoring.",
     proof: [
       "Clock drift uses anchor events",
-      "BMC rejects impossible timelines",
+      "Z3 proves impossible timelines with unsat cores",
       "Counterfactual gaps deny escalation",
       "Bayesian calculus computes confidence",
     ],
@@ -1013,8 +1122,50 @@ const phases = [
     ],
   },
   {
+    id: "explain-response",
+    number: "06",
+    tone: "violet",
+    eyebrow: "Explain and Respond",
+    title: "Technical proof becomes an investigator narrative",
+    summary:
+      "Graph centrality identifies the attack center, provenance explains each verdict, and remediation remains a human-approved response plan.",
+    proof: [
+      "PageRank ranks center of gravity and blast radius",
+      "Provenance exposes evidence and rules, not private scratchpads",
+      "Containment commands are generated but never executed",
+    ],
+    nodes: [
+      makeZone("proof-zone", "proof", 20, 46, 930, 550),
+      makeNode("evidence-graph", 52, 214, 248),
+      makeNode("knowledge-graph", 354, 82, 250),
+      makeNode("provenance", 354, 356, 250),
+      makeNode("remediation", 656, 82, 250),
+      makeNode("final-report", 656, 356, 250),
+    ],
+    edges: [
+      makeEdge("graph-knowledge", "evidence-graph", "knowledge-graph", "indigo", undefined, {
+        sourceHandle: "source-top",
+        targetHandle: "target-left",
+      }),
+      makeEdge("graph-provenance", "evidence-graph", "provenance", "violet", undefined, {
+        sourceHandle: "source-bottom",
+        targetHandle: "target-left",
+      }),
+      makeEdge("knowledge-remediation", "knowledge-graph", "remediation", "green"),
+      makeEdge("knowledge-provenance", "knowledge-graph", "provenance", "indigo", undefined, {
+        sourceHandle: "source-bottom",
+        targetHandle: "target-top",
+      }),
+      makeEdge("provenance-report", "provenance", "final-report", "violet"),
+      makeEdge("remediation-report", "remediation", "final-report", "green", undefined, {
+        sourceHandle: "source-bottom",
+        targetHandle: "target-top",
+      }),
+    ],
+  },
+  {
     id: "delivery",
-    number: "05",
+    number: "07",
     tone: "violet",
     eyebrow: "Judge-Facing Evidence",
     title: "Every deliverable traces back to proof",

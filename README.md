@@ -47,8 +47,11 @@ The agent displays real-time reasoning during execution:
 [COUNTERFACTUAL FAILURE] Denied escalation - Expected execution artifact in Shimcache/AppCompatCache entry missing
 [CLAIM ESCALATION] upgraded from [INFERRED] to [CONFIRMED - CRITICAL]
 [CRITIC REVIEW] Anomaly: mft_creation_postdates_prefetch_execution -> Bayesian posterior scoring
-[BMC SOLVER] Verifying state consistency matrix... CONTRADICTION DETECTED: USN record sequence violates causal time-density bounds.
+[Z3 SOLVER] SMT timeline constraints... UNSAT: USN record sequence violates causal time-density bounds.
 [MFT ENTROPY] Structural metadata entropy spike detected: C:\Users\victim\AppData\Roaming\evil.exe
+[KNOWLEDGE GRAPH] NetworkX PageRank center of gravity and blast radius calculated
+[PROVENANCE] Evidence IDs, rules, and calculations linked to every claim
+[REMEDIATION] Approval-gated playbooks generated; 0 commands executed
 [INTEGRITY] Merkle-DAG root seal: sha256:<root>
 ```
 
@@ -69,6 +72,10 @@ The agent displays real-time reasoning during execution:
    BMC Timeline Contradictions    : 3 proven
    MFT Entropy Anomalies          : 1 / 1 analyzed
    MCP Ephemeral Authorizations   : 16 / 16 accepted
+   Z3 Unsatisfiable Proofs         : 3 reproducible proofs
+   Knowledge Graph Metrics         : 34 PageRank records
+   Explainable Provenance Traces   : 6 evidence-and-rule traces
+   Approval-Gated Playbooks        : 2 generated, 0 executed
    Merkle-DAG Integrity Seal      : sha256:<root>
    Evidence Spoliation Attempts   : 0 Writes Allowed (2 Blocked by Policy)
  SYSTEM METRICS:
@@ -90,10 +97,14 @@ Expected behavior:
 - `svchost.exe` is kept as context, not a malicious finding.
 - EVTX timestamps are normalized by a detected `+120s` drift against memory network evidence.
 - `evil.exe` timestomping-style metadata divergence is flagged as anti-forensics signal.
-- Formal bounded model checking proves three impossible timeline constraints across Prefetch, Amcache, MFT, and USN.
+- Z3 proves three unsatisfiable timeline constraint sets across Prefetch, Amcache, MFT, and USN, retaining tracked cores and SMT-LIB.
 - MFT sequence entropy flags `evil.exe` as an anomalous malicious timestomping pattern.
 - Every typed tool execution is covered by a one-time HMAC-SHA256 nonce authorization record.
 - MITRE ATT&CK sequence gaps trigger targeted tool recommendations before confirmation.
+- NetworkX builds a typed process/file/IP/registry/claim graph and calculates PageRank plus blast radius.
+- Ghidra and eBPF adapters are capability-gated: unavailable hosts are logged honestly, Ghidra requires explicit opt-in, and eBPF is read-only import mode.
+- Every claim receives an evidence-and-rule provenance trace; private model chain-of-thought and hidden prompts are not stored.
+- Confirmed claims can produce analyst-reviewed containment playbooks, but ProofSIFT never executes response commands.
 
 ## Demo Evidence Files
 
@@ -111,7 +122,7 @@ Expected behavior:
 | `autoruns.csv` | Updater -> evil.exe in HKCU\Run | Registry persistence |
 | `payload_notes.txt` | "evil beacon initialized", "c2 channel: 203.0.113.50:443" | Keyword/YARA IOC match |
 
-## 105 Advanced Features
+## 135 Advanced Features
 
 | # | Feature | Category |
 |---|---------|----------|
@@ -135,6 +146,12 @@ Expected behavior:
 | 91-95 | Bounded model checker, causal time-density constraints, satisfiability status, contradiction persistence, BMC audit traces | Formal Timeline Verification |
 | 96-100 | MFT sequence entropy, record-number baseline, execution-to-metadata density scoring, structural timestomp verdict, report/benchmark integration | Metadata Entropy |
 | 101-105 | One-time MCP nonce issue, HMAC-SHA256 signature, payload hash binding, replay rejection, tool authorization evidence table | Ephemeral Tool Authorization |
+| 106-110 | Real Z3 integer constraints, tracked assertions, UNSAT cores, SMT-LIB persistence, solver-version audit events | Neuro-Symbolic Verification |
+| 111-115 | Typed process/file/IP/registry nodes, evidence relationships, NetworkX PageRank, center-of-gravity ranking, blast-radius metrics | Attack Knowledge Graph |
+| 116-120 | Ghidra capability detection, explicit opt-in mode, output-bound projects, eBPF capability detection, read-only telemetry import | Advanced Collectors |
+| 121-125 | Claim-level evidence IDs, verifier rules, Bayesian calculations, counterfactual outcomes, explicit no-hidden-reasoning policy | Explainable Provenance |
+| 126-130 | Generate-only playbooks, analyst approval flag, non-destructive inspection, PowerShell WhatIf containment, rollback guidance | Human-Gated Response |
+| 131-135 | Knowledge graph Merkle nodes, signed graph relationships, provenance sealing, capability sealing, remediation sealing | Extended Chain of Custody |
 
 ## Repository Layout
 
@@ -146,14 +163,18 @@ src/proofsift/              Core package
 ├── benchmark.py            run_benchmark — ground-truth scoring + matrix output
 ├── cli.py                  CLI — run, benchmark, trace, list-tools, validate, mcp-stdio
 ├── clock_drift.py          ClockDriftNormalizer — cross-source timestamp alignment
-├── constraint_engine.py    TimelineConstraintEngine — bounded model checking
+├── constraint_engine.py    TimelineConstraintEngine — Z3 satisfiability proofs
 ├── crypto_auth.py          EphemeralToolAuthorizer — one-time MCP nonce envelopes
+├── advanced_collectors.py  Capability-gated Ghidra and eBPF adapters
 ├── graph.py                EvidenceGraph — SQLite provenance store
 ├── integrity.py            Merkle-DAG graph sealing and verification
+├── knowledge_graph.py      NetworkX entity graph, PageRank, blast radius
 ├── mcp_server.py           JSON-RPC stdio bridge for Protocol SIFT
 ├── mitre_sequence.py       MitreSequenceValidator — tactic state machine
 ├── mft_entropy.py          MftEntropyAnalyzer — structural timestomp scoring
 ├── models.py               Data classes: Artifact, Claim, ToolResult, CaseConfig
+├── provenance.py           Evidence-and-rule XAI provenance traces
+├── remediation.py          Generate-only, approval-gated response playbooks
 ├── reporting.py            Markdown/HTML report generators
 ├── security.py             SafePathPolicy, SHA-256, path validation
 ├── terminal.py             Styled terminal output for agent reasoning
@@ -167,7 +188,7 @@ tests/                      Unit tests (17 tests)
 setup_sift.sh               One-command installer for SIFT Workstation
 ```
 
-Additional advanced modules: `bayesian.py`, `counterfactual.py`, `integrity.py`, `constraint_engine.py`, `mft_entropy.py`, and `crypto_auth.py` add posterior confidence calculus, active missing-evidence falsification, Merkle-DAG graph verification, bounded model checking, structural MFT entropy, and one-time tool authorization.
+Additional advanced modules provide posterior confidence calculus, active missing-evidence falsification, Merkle-DAG verification, Z3 proofs, structural MFT entropy, NetworkX graph analytics, capability-gated native collectors, explainable provenance, and human-gated response playbooks.
 
 ## Setup Script (SIFT Workstation)
 
@@ -209,7 +230,7 @@ proofsift trace --graph cases/demo_case/outputs/evidence_graph.sqlite --claim-id
 proofsift verify-integrity --graph cases/demo_case/outputs/evidence_graph.sqlite
 ```
 
-Returns a single `sha256:<root>` Merkle-DAG seal over tool runs, artifacts, observations, claims, signed claim-evidence relationship blocks, corrections, Bayesian scores, counterfactual checks, BMC results, entropy analyses, and tool authorizations.
+Returns a single `sha256:<root>` Merkle-DAG seal over tool runs, artifacts, observations, claims, signed relationships, corrections, solver results, graph analytics, provenance traces, capability checks, remediation plans, and tool authorizations.
 
 ## Validate Submission
 
@@ -226,12 +247,13 @@ proofsift validate-submission --root .
 | Breadth and depth | 16 typed tools across memory, network, execution, registry, filesystem, event logs, IOC scans |
 | Constraint implementation | Typed tools + SafePathPolicy instead of raw shell access; spoliation probe proves writes blocked |
 | Audit trail quality | JSONL execution log, SQLite evidence graph, Merkle-DAG root seal, trace command, Markdown + HTML reports |
-| Advanced verification | BMC contradictions, MFT entropy, Bayesian calculus, counterfactual alibis, and nonce-backed MCP tool calls |
-| Usability | Zero runtime dependencies for demo mode; runs on any Python 3.10+ system |
+| Advanced verification | Z3 UNSAT proofs, MFT entropy, NetworkX PageRank, Bayesian calculus, counterfactual alibis, and nonce-backed MCP calls |
+| Explainability and response | Evidence-and-rule provenance plus generate-only, approval-gated containment playbooks |
+| Usability | Reproducible Python dependencies; optional native collectors degrade gracefully when unavailable |
 
 ## Built With
 
-Python 3.10+, SQLite 3, MCP (Model Context Protocol), JSON/JSONL, CSV
+Python 3.10+, SQLite 3, Z3, NetworkX, MCP (Model Context Protocol), JSON/JSONL, CSV
 
 ## License
 

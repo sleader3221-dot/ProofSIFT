@@ -6,6 +6,7 @@ from pathlib import Path, PureWindowsPath
 from typing import Any, Callable
 
 from .anti_forensics import AntiForensicsDetector
+from .advanced_collectors import AdvancedCollectorRegistry
 from .audit import AuditLogger
 from .bayesian import BayesianScorer
 from .clock_drift import ClockDriftNormalizer, DriftSearchBoundary
@@ -13,9 +14,12 @@ from .constraint_engine import TimelineConstraintEngine
 from .counterfactual import CounterfactualFalsifier
 from .graph import EvidenceGraph
 from .integrity import calculate_integrity_seal
+from .knowledge_graph import AttackKnowledgeGraph
 from .mitre_sequence import MitreSequenceValidator
 from .mft_entropy import MftEntropyAnalyzer
 from .models import CaseConfig, Claim, ClaimStatus, Severity
+from .provenance import ProvenanceEngine
+from .remediation import RemediationOrchestrator
 from .reporting import write_reports
 from .security import SafePathPolicy
 from .tools import ToolRunner, estimate_tokens
@@ -41,6 +45,15 @@ class SelfCorrectingInvestigator:
         self.bayesian = BayesianScorer(self.graph, self.audit)
         self.constraint_engine = TimelineConstraintEngine(self.graph, self.audit)
         self.mft_entropy = MftEntropyAnalyzer(self.graph, self.audit)
+        self.knowledge_graph = AttackKnowledgeGraph(self.graph, self.audit)
+        self.advanced_collectors = AdvancedCollectorRegistry(
+            self.evidence_dir,
+            self.output_dir,
+            self.graph,
+            self.audit,
+        )
+        self.provenance = ProvenanceEngine(self.graph, self.audit)
+        self.remediation = RemediationOrchestrator(self.graph, self.audit)
         self.t = terminal
         self._start_time = 0.0
 
@@ -144,6 +157,21 @@ class SelfCorrectingInvestigator:
             self._apply_bayesian_scores(iteration=3)
             self.audit.event("agent", "iteration.end", {"iteration": 3})
 
+        capability_checks = self.advanced_collectors.inspect()
+        graph_metrics = self.knowledge_graph.analyze()
+        provenance_traces = self.provenance.generate()
+        remediation_playbooks = self.remediation.generate()
+        self.audit.event(
+            "agent",
+            "advanced_layers.completed",
+            {
+                "capability_checks": len(capability_checks),
+                "graph_metrics": len(graph_metrics),
+                "provenance_traces": len(provenance_traces),
+                "remediation_playbooks": len(remediation_playbooks),
+            },
+        )
+
         integrity_seal = calculate_integrity_seal(self.graph)
         self.audit.event(
             "integrity",
@@ -172,6 +200,12 @@ class SelfCorrectingInvestigator:
             "bmc_results": [dict(row) for row in self.graph.bmc_results()],
             "entropy_analyses": [dict(row) for row in self.graph.entropy_analyses()],
             "tool_authorizations": [dict(row) for row in self.graph.tool_authorizations()],
+            "knowledge_nodes": [dict(row) for row in self.graph.knowledge_nodes()],
+            "knowledge_edges": [dict(row) for row in self.graph.knowledge_edges()],
+            "graph_metrics": [dict(row) for row in self.graph.graph_metrics()],
+            "capability_checks": [dict(row) for row in self.graph.capability_checks()],
+            "provenance_traces": [dict(row) for row in self.graph.provenance_traces()],
+            "remediation_playbooks": [dict(row) for row in self.graph.remediation_playbooks()],
             "integrity_seal": integrity_seal,
         }
         self.audit.event("agent", "run.end", {"case_id": self.config.case_id, "claim_count": len(result["claims"]), "report_md": reports["markdown"]})

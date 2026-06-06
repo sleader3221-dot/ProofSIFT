@@ -18,8 +18,46 @@ export const metrics = {
   bmcContradictions: 3,
   mftEntropyAnomalies: 1,
   toolAuthorizations: 16,
+  z3UnsatProofs: 3,
+  knowledgeGraphMetrics: 34,
+  provenanceTraces: 6,
+  remediationPlaybooks: 2,
+  autoExecutedRemediations: 0,
   merkleRoot: "sha256:<verified-root>",
 };
+
+export const advancedCapabilities = [
+  {
+    name: "Z3 Neuro-Symbolic Verification",
+    status: "ACTIVE",
+    proof: "3 UNSAT timeline proofs with tracked cores and SMT-LIB output",
+  },
+  {
+    name: "NetworkX Attack Knowledge Graph",
+    status: "ACTIVE",
+    proof: "34 PageRank records with center-of-gravity and blast-radius metrics",
+  },
+  {
+    name: "Ghidra Headless Adapter",
+    status: "CAPABILITY-GATED",
+    proof: "Explicit analyst opt-in; output projects remain inside outputs/",
+  },
+  {
+    name: "eBPF Telemetry Adapter",
+    status: "CAPABILITY-GATED",
+    proof: "Read-only import; the agent never loads kernel programs",
+  },
+  {
+    name: "Explainable Provenance",
+    status: "ACTIVE",
+    proof: "Evidence IDs, rules, and calculations for all 6 claims",
+  },
+  {
+    name: "Remediation Orchestrator",
+    status: "REVIEW-ONLY",
+    proof: "2 approval-gated playbooks generated; 0 commands executed",
+  },
+] as const;
 
 export type ClaimStatus = "CONFIRMED - CRITICAL" | "INFERRED - HIGH" | "CONTEXT" | "REJECTED";
 
@@ -447,7 +485,12 @@ export interface AuditEvent {
     | "policy"
     | "bmc_solver"
     | "mft_entropy"
-    | "tool_authorization";
+    | "tool_authorization"
+    | "z3_solver"
+    | "knowledge_graph"
+    | "advanced_collector"
+    | "provenance"
+    | "remediation";
   action: string;
   details?: Record<string, unknown>;
 }
@@ -672,7 +715,7 @@ export const outputArtifacts = [
   {
     file: "outputs/evidence_graph.sqlite",
     kind: "sqlite",
-    desc: "9-table SQLite provenance store (artifacts, claims, observations, anomalies …).",
+    desc: "Merkle-sealed SQLite store with evidence, graph analytics, explanations, and response plans.",
   },
   {
     file: "outputs/execution_log.jsonl",
@@ -728,6 +771,16 @@ export const integrityChecks = [
   {
     check: "MCP nonce authorizations",
     result: "16 / 16 accepted; replay rejected",
+    status: "ok" as const,
+  },
+  {
+    check: "Z3 satisfiability proofs",
+    result: "3 UNSAT cores persisted with SMT-LIB",
+    status: "ok" as const,
+  },
+  {
+    check: "Human response gate",
+    result: "2 playbooks generated; 0 commands executed",
     status: "ok" as const,
   },
 ];

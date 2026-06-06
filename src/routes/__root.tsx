@@ -70,21 +70,21 @@ function RootComponent() {
       <SidebarProvider>
         <div className="flex min-h-screen w-full">
           <AppSidebar />
-          <div className="flex flex-1 flex-col">
+          <div className="flex min-w-0 flex-1 flex-col">
             <header className="sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-border bg-background/80 px-3 backdrop-blur">
               <SidebarTrigger />
               <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-confirmed animate-pulse" />
                 live · self-correcting investigator
               </div>
-              <div className="ml-auto flex items-center gap-3">
+              <div className="ml-auto hidden items-center gap-3 sm:flex">
                 <LiveUtcClock />
                 <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
                   SANS Find Evil · v1.0
                 </span>
               </div>
             </header>
-            <main className="flex-1">
+            <main className="min-w-0 flex-1 overflow-x-hidden">
               <Outlet />
             </main>
           </div>

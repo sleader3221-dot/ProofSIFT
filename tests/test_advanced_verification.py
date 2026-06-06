@@ -78,6 +78,10 @@ class AdvancedVerificationTest(unittest.TestCase):
         self.assertIn('"actor": "bmc_solver"', log)
         self.assertIn('"actor": "mft_entropy"', log)
         self.assertIn('"actor": "tool_authorization"', log)
+        self.assertIn('"actor": "z3_solver"', log)
+        self.assertIn('"actor": "knowledge_graph"', log)
+        self.assertIn('"actor": "provenance"', log)
+        self.assertIn('"actor": "remediation"', log)
 
     def test_merkle_dag_integrity_root_is_verifiable(self):
         graph = EvidenceGraph(self.output / "evidence_graph.sqlite")
@@ -114,6 +118,11 @@ class AdvancedVerificationTest(unittest.TestCase):
         self.assertIn("USN record sequence violates causal time-density bounds", contradictions)
         self.assertTrue(all(row["status"] == "CONTRADICTION" for row in rows))
         self.assertTrue(all(row["timeline_validity"] == 0.0 for row in rows))
+        details = [json.loads(row["details_json"]) for row in rows]
+        self.assertTrue(all(item["solver"].startswith("Z3 ") for item in details))
+        self.assertTrue(all(item["solver_status"] == "unsat" for item in details))
+        self.assertTrue(all(item["unsat_core"] for item in details))
+        self.assertTrue(all("(check-sat)" in item["smt2"] for item in details))
 
     def test_mft_entropy_detects_structural_timestomping(self):
         rows = self.conn.execute("select * from entropy_analyses").fetchall()
@@ -129,6 +138,44 @@ class AdvancedVerificationTest(unittest.TestCase):
         self.assertGreaterEqual(len(authorizations), 16)
         self.assertTrue(all(row["status"] == "authorized" for row in authorizations))
         self.assertTrue(all(row["schema_valid"] == 1 for row in authorizations))
+
+    def test_networkx_graph_identifies_center_of_gravity(self):
+        nodes = self.conn.execute("select * from knowledge_nodes").fetchall()
+        edges = self.conn.execute("select * from knowledge_edges").fetchall()
+        metrics = self.conn.execute("select * from graph_metrics order by rank").fetchall()
+        self.assertGreaterEqual(len(nodes), 1)
+        self.assertGreaterEqual(len(edges), 1)
+        self.assertEqual(metrics[0]["rank"], 1)
+        details = json.loads(metrics[0]["details_json"])
+        self.assertTrue(details["center_of_gravity"])
+        self.assertIn("networkx_version", details)
+
+    def test_advanced_collectors_degrade_gracefully(self):
+        rows = self.conn.execute("select * from capability_checks").fetchall()
+        self.assertEqual({row["capability"] for row in rows}, {"ghidra_headless", "ebpf_telemetry"})
+        self.assertTrue(all(row["mode"] in {"manual_opt_in_read_only", "read_only_import"} for row in rows))
+        self.assertTrue(all(row["status"] in {"AVAILABLE", "UNAVAILABLE"} for row in rows))
+
+    def test_provenance_is_evidence_and_rule_based(self):
+        claim_count = self.conn.execute("select count(*) from claims").fetchone()[0]
+        traces = self.conn.execute("select * from provenance_traces").fetchall()
+        self.assertEqual(len(traces), claim_count)
+        for trace in traces:
+            self.assertIn("Hidden model chain-of-thought", trace["reasoning_policy"])
+            self.assertNotIn("critic prompt", trace["calculations_json"].lower())
+            self.assertGreaterEqual(len(json.loads(trace["rules_json"])), 3)
+
+    def test_remediation_is_generate_only_and_approval_gated(self):
+        rows = self.conn.execute("select * from remediation_playbooks").fetchall()
+        self.assertGreaterEqual(len(rows), 1)
+        self.assertTrue(all(row["execution_mode"] == "generate_only" for row in rows))
+        self.assertTrue(all(row["requires_approval"] == 1 for row in rows))
+        commands = "\n".join(
+            step["command"]
+            for row in rows
+            for step in json.loads(row["steps_json"])
+        )
+        self.assertIn("-WhatIf", commands)
 
 
 if __name__ == "__main__":

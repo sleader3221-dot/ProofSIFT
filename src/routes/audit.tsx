@@ -16,6 +16,14 @@ const actorClass: Record<AuditEvent["actor"], string> = {
   mitre_sequence: "text-inferred border-inferred/40 bg-inferred/5",
   clock_drift: "text-inferred border-inferred/40 bg-inferred/5",
   policy: "text-blocked border-blocked/40 bg-blocked/5",
+  bmc_solver: "text-blocked border-blocked/40 bg-blocked/5",
+  z3_solver: "text-blocked border-blocked/40 bg-blocked/5",
+  mft_entropy: "text-inferred border-inferred/40 bg-inferred/5",
+  tool_authorization: "text-confirmed border-confirmed/40 bg-confirmed/5",
+  knowledge_graph: "text-confirmed border-confirmed/40 bg-confirmed/5",
+  advanced_collector: "text-foreground border-border bg-muted/30",
+  provenance: "text-confirmed border-confirmed/40 bg-confirmed/5",
+  remediation: "text-inferred border-inferred/40 bg-inferred/5",
 };
 
 const actors: AuditEvent["actor"][] = [
@@ -25,6 +33,14 @@ const actors: AuditEvent["actor"][] = [
   "mitre_sequence",
   "clock_drift",
   "policy",
+  "bmc_solver",
+  "z3_solver",
+  "mft_entropy",
+  "tool_authorization",
+  "knowledge_graph",
+  "advanced_collector",
+  "provenance",
+  "remediation",
 ];
 
 function AuditPage() {
